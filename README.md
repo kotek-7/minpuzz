@@ -17,6 +17,7 @@
 2. **Supabase ローカル環境の起動**
    ```bash
    cd supabase
+   pnpm install
    pnpm supabase start
    ```
    
