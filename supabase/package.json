@@ -1,0 +1,11 @@
+{
+  "name": "supabase",
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.15.0",
+  "devDependencies": {
+    "supabase": "^2.34.3"
+  },
+  "engines": {
+    "node": "22.18.0"
+  }
+}
