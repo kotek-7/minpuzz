@@ -23,10 +23,7 @@
 3. **全サービス起動（Docker Compose）**
    ```bash
    # Redis + Frontend + Backend を一括起動
-   docker-compose up -d
-   
-   # ログ確認
-   docker-compose logs -f
+   docker-compose up --build
    ```
 
 ## 🌐 アクセスURL
