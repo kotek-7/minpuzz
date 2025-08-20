@@ -49,5 +49,5 @@ EXPOSE 3001
 
 ENV PORT=3001
 
-# アプリケーションの開始
-CMD ["pnpm", "start"]
+# アプリケーションの開始（nodeで直接実行）
+CMD ["node", "dist/src/index.js"]
