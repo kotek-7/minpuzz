@@ -1,0 +1,28 @@
+%%{init:{'theme':'default'}}%%
+graph TB
+    %% データベース
+    subgraph "**PostgreSQL (Supabase)**"
+        PostgreSQL["**Supabase PostgreSQL**<br/>永続化データ"]
+    end
+
+    subgraph "**Redis (Upstash)**"
+        Redis["**Redis**<br/>セッション管理"]
+    end
+
+    %% フロントエンド
+    subgraph "**フロントエンド (Vercel)**"
+        Frontend["**Next.js 15**<br/>App Router<br/>React 19 + TypeScript<br/>TailwindCSS v4"]
+    end
+    
+    %% バックエンド
+    subgraph "**バックエンド (Railway)**"
+        Backend["**Express.js**<br/>Socket.io<br/>Node.js 22 + TypeScript"]
+        Prisma["**Prisma**<br/>ORM"]
+    end
+
+    %% 接続関係
+    Backend <---> Redis
+    Backend <--> Prisma
+    Prisma <---> PostgreSQL
+    Frontend <--"REST API"--> Backend
+    Frontend <--"WebSocket<br/>リアルタイム通信"--> Backend
