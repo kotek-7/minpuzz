@@ -8,7 +8,6 @@
 - Node.js 22.18.0
 - pnpm
 - Docker & Docker Compose
-- Supabase CLI
 
 ### セットアップ手順
 
@@ -21,7 +20,7 @@
 2. **Supabase ローカル環境の起動**
    ```bash
    cd supabase
-   supabase start
+   pnpm supabase start
    ```
    
 3. **全サービス起動（Docker Compose）**
