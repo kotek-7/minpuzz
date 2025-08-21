@@ -12,7 +12,7 @@
 ### セットアップ手順
 
 1. **環境変数の設定**
-   kotekに.envファイルをもらってルートディレクトリに(`/.env`となるように)配置
+   kotekに.envファイルをふたつもらってfrontend/とbackend/に(`/frontend/.env`、`/backend/.env`となるように)配置
 
 2. **Supabase ローカル環境の起動**
    ```bash
