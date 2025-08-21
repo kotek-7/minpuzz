@@ -46,7 +46,7 @@
 
 ### 本番環境
 - **フロント**: Vercel
-- **バック**: Railway
+- **バック**: Render
 - **DB**: Supabase Cloud
 - **Redis**: Upstash
 

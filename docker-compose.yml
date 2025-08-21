@@ -1,6 +1,6 @@
 # ローカル開発環境用 Docker Compose
 # Supabase: 独立で `supabase start` を使用
-# 本番環境: 各サービスを個別にデプロイ（Vercel, Railway）
+# 本番環境: 各サービスを個別にデプロイ（Vercel, Render）
 
 version: '3.8'
 

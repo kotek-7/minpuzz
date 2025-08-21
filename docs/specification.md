@@ -74,7 +74,7 @@ project-root/
 
 ### 本番環境
 - **フロントエンド**: Vercel
-- **バックエンド**: Railway
+- **バックエンド**: Render
 - **Redis**: Upstash
 - **PostgreSQL**: Supabase
 
@@ -99,7 +99,7 @@ project-root/
 
 2. **アプリケーションデプロイ**
    - フロントエンド: Vercel自動デプロイ
-   - バックエンド: Railway自動デプロイ
+   - バックエンド: Render自動デプロイ
 
 3. **環境設定管理**
    - 環境変数の適切な設定
