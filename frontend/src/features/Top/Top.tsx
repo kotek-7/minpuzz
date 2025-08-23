@@ -1,19 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { Logo } from "./Logo";
 import styles from"./style.module.css";
-import logo from "./logo.svg";
 
-function Top() {
+export const Top = () => {
   const [nickname, setNickname]=useState("");
-
-  console.log("logo:", logo);
 
   return (
     <div className={styles.Back}> {/*最奥の背景*/}
       <div className={styles.card}> {/*白いカード */}
-        <img src={logo.src} style={{width:"340px",height:"auto",marginTop:"70px"}}/>
-
+        <Logo style={{ width:"340px",height:"auto",marginTop:"70px" }} />
         <p className={styles.subtitle}>力を合わせてパズルを完成させよう!</p>
         
         <div className={styles.inputGroup}>
@@ -41,5 +38,3 @@ function Top() {
     </div>
   )
 }
-
-export default Top
