@@ -37,7 +37,7 @@ const generateUniqueTeamNumber = async (redis: RedisClient): Promise<Result<stri
     const teamNumber = generateRandomCode(6);
     const exists = await redis.sismember(redisKeys.teamNumbers(), teamNumber);
 
-    if (!exists) return ok(teamNumber);
+    if (exists.isOk() && !exists.value) return ok(teamNumber);
     attempts++;
   }
 
