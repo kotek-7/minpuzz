@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import * as TeamModel from "../model/team/team.js";
-import { RedisClient } from "../shared/redisClient.js";
+import { RedisClient } from "../repository/redisClient.js";
 import { ok, err, Result } from "neverthrow";
 
 // Zod Validation Schemas

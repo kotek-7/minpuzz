@@ -1,6 +1,6 @@
 import express from "express";
 import * as TeamController from "../../controller/team.js";
-import { RedisClient } from "../../shared/redisClient.js";
+import { RedisClient } from "../../repository/redisClient.js";
 import { ok } from "neverthrow";
 
 const router = express.Router();

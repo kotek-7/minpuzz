@@ -1,5 +1,5 @@
 import { Server, Socket } from "socket.io";
-import { RedisClient } from "../shared/redisClient.js";
+import { RedisClient } from "../repository/redisClient.js";
 import {
   SOCKET_EVENTS,
   JoinTeamPayload,

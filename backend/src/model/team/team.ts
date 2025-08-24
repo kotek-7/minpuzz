@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { RedisClient } from "../../shared/redisClient.js";
+import { RedisClient } from "../../repository/redisClient.js";
 import { MemberRole, MemberStatus, Team, TeamMember, TeamStatus } from "./types.js";
 import { redisKeys } from "../../repository/redisKeys.js";
 import { err, ok, Result } from "neverthrow";
