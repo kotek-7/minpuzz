@@ -15,7 +15,7 @@ sequenceDiagram
     %% チーム作成フロー
     alt チーム作成を選択
         U->>F: チーム作成ボタンをクリック
-        F->>B: POST /api/teams/create
+        F->>B: POST /teams
         B->>R: チーム情報を保存<br/>(チーム番号、作成者ID)
         R-->>B: 保存完了
         B-->>F: チーム番号とチーム情報を返却
@@ -39,7 +39,7 @@ sequenceDiagram
         U->>F: チーム参加ボタンをクリック
         F-->>U: チーム番号入力画面を表示
         U->>F: チーム番号を入力・送信
-        F->>B: POST /api/teams/join<br/>{teamNumber, userId}
+        F->>B: POST /teams/join<br/>{teamNumber, userId}
         
         alt チーム番号が有効
             B->>R: チーム存在確認

@@ -59,13 +59,15 @@ project-root/
 ├── backend/             # Express.js サーバー
 │   ├── src/
 │   │   ├── routes/      # API ルート
+│   │   ├── controller/  # API コントローラー
+│   │   ├── model/       # データモデル
 │   │   ├── services/    # ビジネスロジック
 │   │   ├── socket/      # Socket.io ハンドラー
-│   │   └── prisma/      # Prisma設定
+│   │   └── middlewares.ts
+│   └── prisma/          # Prisma設定・スキーマ
 ├── supabase/            # Supabaseローカル開発環境
-│   ├── config.toml      # Supabase設定
-│   ├── migrations/      # DBマイグレーション
-│   ├── seed.sql         # 初期データ
+│   └── supabase/
+│       └── config.toml  # Supabase設定
 └── docs/
     └── specification.md # 本仕様書
 ```
