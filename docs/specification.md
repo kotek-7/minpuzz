@@ -61,15 +61,20 @@ project-root/
 │   │   ├── routes/      # API ルート
 │   │   ├── controller/  # API コントローラー
 │   │   ├── model/       # データモデル
-│   │   ├── services/    # ビジネスロジック
+│   │   ├── shared/      # 共有ユーティリティ・Redis
 │   │   ├── socket/      # Socket.io ハンドラー
+│   │   ├── generated/   # Prisma生成ファイル
 │   │   └── middlewares.ts
-│   └── prisma/          # Prisma設定・スキーマ
+│   └── prisma/          # Prisma設定・スキーマ（未作成）
 ├── supabase/            # Supabaseローカル開発環境
 │   └── supabase/
 │       └── config.toml  # Supabase設定
 └── docs/
-    └── specification.md # 本仕様書
+    ├── specification.md # 本仕様書
+    ├── architecture.mmd # アーキテクチャ図
+    ├── sequence-home-to-team.mmd # シーケンス図
+    └── typescript/      # TypeScript開発ガイド
+        └── fp.md        # 関数型プログラミングガイド
 ```
 
 ## デプロイ・運用
@@ -114,8 +119,13 @@ project-root/
 - チーム状態、ゲーム進行、マッチング状況の即座反映
 
 ### 状態管理
-- **Redis**: 一時的なゲーム状態、セッション管理
-- **PostgreSQL**: 永続化が必要なユーザー情報、ゲーム履歴
+- **Redis**: 一時的なゲーム状態、セッション管理（現在はMock実装）
+- **PostgreSQL**: 永続化が必要なユーザー情報、ゲーム履歴（Prisma未設定）
+
+### アーキテクチャパターン
+- **関数型ドメインモデリング**: docs/typescript/fp.md参照
+- **Result型エラーハンドリング**: neverthrowライブラリ使用
+- **型安全性**: Zodバリデーション、TypeScript strict mode
 
 ## 今後の拡張性
 
