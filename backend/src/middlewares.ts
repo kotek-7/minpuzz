@@ -1,7 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
 
-import type ErrorResponse from "./interfaces/error-response.js";
-
 import { env } from "./env.js";
 
 export function notFound(req: Request, res: Response, next: NextFunction) {
@@ -10,7 +8,7 @@ export function notFound(req: Request, res: Response, next: NextFunction) {
   next(error);
 }
 
-export function errorHandler(err: Error, req: Request, res: Response<ErrorResponse>, _next: NextFunction) {
+export function errorHandler(err: Error, _req: Request, res: Response) {
   const statusCode = res.statusCode !== 200 ? res.statusCode : 500;
   res.status(statusCode);
   res.json({

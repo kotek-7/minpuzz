@@ -1,0 +1,64 @@
+%%{init: {'theme':'default', 'themeVariables': {'primaryColor': '#4f46e5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#3730a3', 'lineColor': '#374151', 'secondaryColor': '#e5e7eb', 'tertiaryColor': '#f3f4f6'}}}%%
+
+sequenceDiagram
+    participant U as ユーザー
+    participant F as フロントエンド
+    participant B as バックエンド
+    participant R as Redis
+
+    Note over U,R: ホーム画面からチーム作成・参加のフロー
+
+    %% ホーム画面
+    U->>F: ホーム画面にアクセス
+    F-->>U: ホーム画面を表示<br/>・チーム作成ボタン<br/>・チーム参加ボタン
+
+    %% チーム作成フロー
+    alt チーム作成を選択
+        U->>F: チーム作成ボタンをクリック
+        F->>B: POST /teams
+        B->>R: チーム情報を保存<br/>(チーム番号、作成者ID)
+        R-->>B: 保存完了
+        B-->>F: チーム番号とチーム情報を返却
+        F->>F: チーム待機画面に画面遷移
+        F-->>U: チーム待機画面を表示<br/>・チーム番号表示<br/>・メンバー一覧<br/>・待機状態
+
+        Note over F,B: WebSocket接続でリアルタイム更新
+        F->>B: Socket接続 (team:{teamId})
+        B->>R: チームメンバー情報を更新
+        
+        loop メンバー参加待ち
+            Note over U: 他のメンバーの参加を待機
+            alt 新しいメンバーが参加
+                B->>F: Socket emit: memberJoined
+                F-->>U: メンバー一覧を更新表示
+            end
+        end
+
+    %% チーム参加フロー  
+    else チーム参加を選択
+        U->>F: チーム参加ボタンをクリック
+        F-->>U: チーム番号入力画面を表示
+        U->>F: チーム番号を入力・送信
+        F->>B: POST /teams/join<br/>{teamNumber, userId}
+        
+        alt チーム番号が有効
+            B->>R: チーム存在確認
+            R-->>B: チーム情報を返却
+            B->>R: ユーザーをチームに追加
+            R-->>B: 追加完了
+            B-->>F: チーム参加成功
+            F->>F: チーム待機画面に画面遷移
+            F-->>U: チーム待機画面を表示<br/>・チーム番号表示<br/>・メンバー一覧<br/>・待機状態
+
+            Note over F,B: WebSocket接続でリアルタイム更新
+            F->>B: Socket接続 (team:{teamId})
+            B->>R: チームメンバー情報を更新
+            B->>F: Socket broadcast: memberJoined<br/>(既存メンバーに通知)
+            
+        else チーム番号が無効
+            B-->>F: エラー: チームが見つからない
+            F-->>U: エラーメッセージ表示<br/>「チーム番号が見つかりません」
+        end
+    end
+
+    Note over U,R: この後、人数が揃うとマッチング画面へ移行
