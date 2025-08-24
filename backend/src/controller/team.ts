@@ -51,11 +51,18 @@ export const createTeam = (redis: RedisClient) => {
       const validationResult = validateAndHandle(createTeamSchema, req.body, res);
       if (validationResult.isErr()) return;
 
-      const team = await TeamModel.createTeam(redis, validationResult.value.createdBy, validationResult.value.maxMembers);
-      
+      const teamResult = await TeamModel.createTeam(redis, validationResult.value.createdBy, validationResult.value.maxMembers);
+      if (teamResult.isErr()) {
+        res.status(500).json({
+          error: "Failed to create team",
+          message: teamResult.error,
+        });
+        return;
+      }
+
       res.status(201).json({
         success: true,
-        data: team,
+        data: teamResult.value,
       });
     } catch (error) {
       res.status(500).json({
