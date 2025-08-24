@@ -1,6 +1,6 @@
 import { Result, ok, err } from "neverthrow";
 import { RedisClient } from "../shared/redisClient.js";
-import { redisKeys } from "../shared/redisKeys.js";
+import { redisKeys } from "../repository/redisKeys.js";
 
 export const getTeamRoom = (teamId: string): string => `team:${teamId}`;
 
