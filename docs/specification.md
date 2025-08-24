@@ -61,7 +61,8 @@ project-root/
 │   │   ├── routes/      # API ルート
 │   │   ├── controller/  # API コントローラー
 │   │   ├── model/       # データモデル
-│   │   ├── shared/      # 共有ユーティリティ・Redis
+│   │   ├── repository/  # データアクセス層・Redis操作
+│   │   ├── shared/      # 共有ユーティリティ
 │   │   ├── socket/      # Socket.io ハンドラー
 │   │   ├── generated/   # Prisma生成ファイル
 │   │   └── middlewares.ts

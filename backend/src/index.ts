@@ -3,7 +3,7 @@ import { env } from "./env.js";
 import { Server } from "socket.io";
 import { registerTeamHandler } from "./socket/teamSocket.js";
 import { createServer } from "http";
-import { RedisClient } from "./shared/redisClient.js";
+import { RedisClient } from "./repository/redisClient.js";
 import { ok } from "neverthrow";
 
 const port = env.PORT;

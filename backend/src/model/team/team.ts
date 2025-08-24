@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
-import { RedisClient } from "../../shared/redisClient.js";
+import { RedisClient } from "../../repository/redisClient.js";
 import { MemberRole, MemberStatus, Team, TeamMember, TeamStatus } from "./types.js";
-import { redisKeys } from "../../shared/redisKeys.js";
+import { redisKeys } from "../../repository/redisKeys.js";
 import { err, ok, Result } from "neverthrow";
 
 export const RedisTTL = {
@@ -29,7 +29,7 @@ const generateRandomCode = (length: number): string => {
   return result;
 };
 
-const generateUniqueTeamNumber = async (redis: RedisClient): Promise<string> => {
+const generateUniqueTeamNumber = async (redis: RedisClient): Promise<Result<string, string>> => {
   let attempts = 0;
   const maxAttempts = 100;
 
@@ -37,21 +37,23 @@ const generateUniqueTeamNumber = async (redis: RedisClient): Promise<string> => 
     const teamNumber = generateRandomCode(6);
     const exists = await redis.sismember(redisKeys.teamNumbers(), teamNumber);
 
-    if (!exists) return teamNumber;
+    if (!exists) return ok(teamNumber);
     attempts++;
   }
 
-  throw new Error("Failed to generate unique team number");
+  return err("Failed to generate unique team number");
 };
 
 // Team operations
-export const createTeam = async (redis: RedisClient, createdBy: string, maxMembers?: number): Promise<Team> => {
+export const createTeam = async (redis: RedisClient, createdBy: string, maxMembers?: number): Promise<Result<Team, string>> => {
   const teamId = generateTeamId();
-  const teamNumber = await generateUniqueTeamNumber(redis);
+  const teamNumberResult = await generateUniqueTeamNumber(redis);
+
+  if (teamNumberResult.isErr()) return err(teamNumberResult.error);
 
   const team: Team = {
     id: teamId,
-    teamNumber,
+    teamNumber: teamNumberResult.value,
     currentMembers: 0,
     maxMembers: maxMembers || 4,
     status: TeamStatus.WAITING,
@@ -61,16 +63,16 @@ export const createTeam = async (redis: RedisClient, createdBy: string, maxMembe
   };
 
   const teamPromise = redis.set(redisKeys.team(teamId), JSON.stringify(team), RedisTTL.TEAM_SESSION);
-  const teamByNumberPromise = redis.set(redisKeys.teamByNumber(teamNumber), teamId, RedisTTL.TEAM_NUMBER);
-  const teamNumbersPromise = redis.sadd(redisKeys.teamNumbers(), teamNumber);
+  const teamByNumberPromise = redis.set(redisKeys.teamByNumber(teamNumberResult.value), teamId, RedisTTL.TEAM_NUMBER);
+  const teamNumbersPromise = redis.sadd(redisKeys.teamNumbers(), teamNumberResult.value);
   const createTeamResult = Result.combine(await Promise.all([teamPromise, teamByNumberPromise, teamNumbersPromise]));
 
-  if (createTeamResult.isErr()) throw new Error(`failed to create team: ${createTeamResult.error}`);
-  if (!createTeamResult.value[0]) throw new Error("failed to store team data");
-  if (!createTeamResult.value[1]) throw new Error("failed to index team by number");
-  if (createTeamResult.value[2] === 0) throw new Error("failed to add team number to active set");
+  if (createTeamResult.isErr()) return err(`failed to create team: ${createTeamResult.error}`);
+  if (!createTeamResult.value[0]) return err("failed to store team data");
+  if (!createTeamResult.value[1]) return err("failed to index team by number");
+  if (createTeamResult.value[2] === 0) return err("failed to add team number to active set");
 
-  return team;
+  return ok(team);
 };
 
 export const getTeam = async (redis: RedisClient, teamId: string): Promise<Result<Team | null, string>> => {
