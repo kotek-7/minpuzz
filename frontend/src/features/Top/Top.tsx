@@ -3,19 +3,24 @@
 import { useState } from "react";
 import { Logo } from "./Logo";
 
+
 export const Top = () => {
   const [nickname, setNickname] = useState("");
 
   return (
-    <div className="max-w-[380px] mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]">
+    <div className="w-full mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]" style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
       <div className="bg-[#e0f8fb] p-2.5 min-h-[650px] text-center">
-        <Logo style={{ width: "340px", height: "auto", marginTop: "70px" }} />
-        <p className="text-[21px] mt-5 mb-5 text-black text-center">
+        <div className="flex justify-center">
+          <Logo style={{ width: "340px", height: "auto", marginTop: "70px" }} />
+        </div>
+        <p className="text-[18px] mt-5 mb-5 text-black text-center">
           力を合わせてパズルを完成させよう!
         </p>
 
-        <div className="flex max-w-[300px] mx-auto my-[30px]">
-          <label className="font-bold text-[20px] min-w-[60px]">名前 :</label>
+        <div className="flex items-center gap-x-2 max-w-[300px] mx-auto my-[30px]">
+          <label htmlFor="nickname" className="font-bold text-[20px] min-w-[60px]">
+            名前 :
+          </label>
           <input
             type="text"
             id="nickname"
@@ -25,6 +30,7 @@ export const Top = () => {
             className="w-full p-[10px] text-[15px] rounded-[8px] border-2 border-[#007f9e]"
           />
         </div>
+
 
         <div className="flex justify-center gap-[20px]">
           <button
