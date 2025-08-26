@@ -266,20 +266,20 @@ export const startMatching = async (redis: RedisClient, teamId: string): Promise
 };
 
 /**
- * チームをマッチング待機リストに追加する
+ * リアルタイム対戦のためマッチング待機キューにチーム登録
+ * Redis SetとStringの組み合わせでO(1)検索と詳細情報取得を両立
  */
 export const addTeamToMatchingQueue = async (
   redis: RedisClient, 
   teamId: string
 ): Promise<Result<MatchingTeamInfo, string>> => {
-  // チーム存在確認
   const teamResult = await getTeam(redis, teamId);
   if (teamResult.isErr()) return err(`could not retrieve team: ${teamResult.error}`);
   if (!teamResult.value) return err("team not found");
 
   const team = teamResult.value;
 
-  // チームステータスがMATCHING状態であることを確認
+  // ビジネス要件: マッチング開始済みチームのみキュー参加可能
   if (team.status !== TeamStatus.MATCHING) {
     return err(`team is not in matching state: current status is ${team.status}`);
   }
@@ -290,11 +290,11 @@ export const addTeamToMatchingQueue = async (
     joinedAt: new Date().toISOString(),
   };
 
-  // Redis Setにteamidを追加
+  // 性能要件: Redis SetでO(1)の高速チーム検索を実現
   const queueAddResult = await redis.sadd(redisKeys.matchingQueue(), teamId);
   if (queueAddResult.isErr()) return err(`failed to add team to matching queue: ${queueAddResult.error}`);
 
-  // Redis Stringにteam情報を保存
+  // TTL設定でメモリリーク防止（10分でマッチング待機タイムアウト）
   const teamInfoResult = await redis.set(
     redisKeys.matchingTeam(teamId), 
     JSON.stringify(matchingTeamInfo), 
@@ -307,17 +307,17 @@ export const addTeamToMatchingQueue = async (
 };
 
 /**
- * チームをマッチング待機リストから削除する
+ * マッチング成立時またはキャンセル時のキューからの確実な削除処理
+ * データ不整合防止のためSetとString両方の原子的削除を保証
  */
 export const removeTeamFromMatchingQueue = async (
   redis: RedisClient, 
   teamId: string
 ): Promise<Result<boolean, string>> => {
-  // Redis Setからteamidを削除
+  // 冪等性保証: 既に削除済みでもエラーにならない設計
   const queueRemoveResult = await redis.srem(redisKeys.matchingQueue(), teamId);
   if (queueRemoveResult.isErr()) return err(`failed to remove team from matching queue: ${queueRemoveResult.error}`);
 
-  // Redis Stringのteam情報を削除
   const teamInfoRemoveResult = await redis.del(redisKeys.matchingTeam(teamId));
   if (teamInfoRemoveResult.isErr()) return err(`failed to remove team matching info: ${teamInfoRemoveResult.error}`);
 
@@ -325,12 +325,12 @@ export const removeTeamFromMatchingQueue = async (
 };
 
 /**
- * マッチング待機中のチーム一覧を取得する
+ * 公平なマッチングのための待機チーム一覧を先着順で取得
+ * 自動データクリーンアップ機能でキューの整合性を保持
  */
 export const getMatchingQueueTeams = async (
   redis: RedisClient
 ): Promise<Result<MatchingTeamInfo[], string>> => {
-  // Redis Setから全てのteamIDを取得
   const teamIdsResult = await redis.smembers(redisKeys.matchingQueue());
   if (teamIdsResult.isErr()) return err(`failed to get team IDs from matching queue: ${teamIdsResult.error}`);
 
@@ -339,19 +339,19 @@ export const getMatchingQueueTeams = async (
     return ok([]);
   }
 
-  // 各teamIDの詳細情報をRedis Stringから並行取得
+  // パフォーマンス最適化: Promise.allで並行処理による高速化
   const teamInfoPromises = teamIds.map(async (teamId) => {
     const infoResult = await redis.get(redisKeys.matchingTeam(teamId));
     if (infoResult.isErr()) return null;
     if (!infoResult.value) {
-      // 存在しないteamIDを自動クリーンアップ
+      // 運用保守性: TTL切れや手動削除による不整合を自動修復
       await redis.srem(redisKeys.matchingQueue(), teamId);
       return null;
     }
     try {
       return JSON.parse(infoResult.value) as MatchingTeamInfo;
     } catch {
-      // パース失敗時も自動クリーンアップ
+      // 例外対応: JSONパース失敗時の自動データクリーンアップ
       await redis.srem(redisKeys.matchingQueue(), teamId);
       await redis.del(redisKeys.matchingTeam(teamId));
       return null;
@@ -360,7 +360,7 @@ export const getMatchingQueueTeams = async (
 
   const teamInfos = await Promise.all(teamInfoPromises);
   
-  // null値を除外し、joinedAt順でソート
+  // ビジネス要件: 先着順マッチングのためjoinedAt昇順ソート
   const validTeamInfos = teamInfos
     .filter((info): info is MatchingTeamInfo => info !== null)
     .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
@@ -369,19 +369,20 @@ export const getMatchingQueueTeams = async (
 };
 
 /**
- * マッチング相手を見つける（指定チーム以外で最初の相手を返却）
+ * FIFO方式による公平な対戦相手マッチング
+ * 自チーム除外で最早参加チームとの対戦を実現
  */
 export const findMatchingPartner = async (
   redis: RedisClient, 
   excludeTeamId: string
 ): Promise<Result<MatchingTeamInfo | null, string>> => {
-  // マッチング待機チーム一覧を取得
   const teamsResult = await getMatchingQueueTeams(redis);
   if (teamsResult.isErr()) return err(`failed to get matching queue teams: ${teamsResult.error}`);
 
   const teams = teamsResult.value;
   
-  // 指定されたチームを除外し、最初のチームを返却
+  // ビジネス要件: 自チーム除外でのFIFO（先入先出）マッチング
+  // 将来拡張: レーティング差制限、チーム人数マッチング等の条件追加可能
   const partner = teams.find(team => team.teamId !== excludeTeamId);
   
   return ok(partner || null);
