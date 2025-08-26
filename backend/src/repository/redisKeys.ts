@@ -1,7 +1,24 @@
 import { RedisHashKey, RedisSetKey, RedisStringKey } from "./redisKeyTypes";
 
-// Redis のキー定義
+/**
+ * Redis のキー定義
+ * 
+ * 【重要】キー操作時の必須ルール:
+ * 
+ * ■ チーム作成時:
+ *   team() + teamByNumber() + teamNumbers() を必ずセットで作成
+ * 
+ * ■ チーム削除時:
+ *   team() + teamByNumber() + teamMembers() + teamNumbers() を必ずセットで削除
+ * 
+ * ■ ソケット接続時:
+ *   socketToUser() + userToSocket() を必ずセットで作成
+ * 
+ * ■ ソケット切断時:
+ *   socketToUser() + userToSocket() を必ずセットで削除
+ */
 export const redisKeys = {
+  // チーム基本情報
   team: (teamId: string) => RedisStringKey(`team:${teamId}`),
   // チーム番号の一意性保証とO(1)検索用インデックス
   teamByNumber: (teamNumber: string) => RedisStringKey(`team:number:${teamNumber}`),
