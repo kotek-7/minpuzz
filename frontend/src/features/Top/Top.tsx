@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useState } from "react";
 import { Logo } from "./Logo";
 
@@ -8,7 +9,7 @@ export const Top = () => {
   const [nickname, setNickname] = useState("");
 
   return (
-    <div className="w-full mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]" style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+    <div className="h-screen w-full mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]" style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
       <div className="bg-[#e0f8fb] p-2.5 min-h-[650px] text-center">
         <div className="flex justify-center">
           <Logo style={{ width: "340px", height: "auto", marginTop: "70px" }} />
