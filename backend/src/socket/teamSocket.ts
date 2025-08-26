@@ -9,6 +9,7 @@ import {
   TeamUpdatedPayload,
 } from "./events.js";
 import { getTeamRoom, addSocketUserMapping, removeSocketUserMapping, getUserBySocketId } from "./utils.js";
+import * as TeamModel from "../model/team/team.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
@@ -38,7 +39,8 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
         timestamp: new Date().toISOString(),
       };
 
-      socket.to(teamRoom).emit(SOCKET_EVENTS.MEMBER_JOINED, memberJoinedPayload);
+      const a = socket.to(teamRoom).emit(SOCKET_EVENTS.MEMBER_JOINED, memberJoinedPayload);
+      console.log("Member joined:", a, memberJoinedPayload);
 
       // チーム人数変更の全体通知（参加者本人も含む）
       // フロントエンドでのメンバー数表示更新とマッチング条件判定に必要
@@ -104,7 +106,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
         console.error(`Failed to get user by socket ID: ${userResult.error}`);
         return;
       }
-      
+
       const userId = userResult.value;
       if (!userId) {
         console.log(`Socket ${socket.id} disconnected (no user mapping found)`);
@@ -116,6 +118,12 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       // 予期しない切断（ブラウザ終了・ネットワーク障害等）への対応
       // 全てのチームルームから自動離脱処理を実行
       const rooms = Array.from(socket.rooms).filter((room) => room.startsWith("team:"));
+
+      console.log(`Removing user ${userId} from all teams...`);
+      const removeUserFromAllTeamsResult = await TeamModel.removeUserFromAllTeams(redis, userId);
+      if (removeUserFromAllTeamsResult.isErr()) {
+        console.error(`Failed to remove user ${userId} from all teams: ${removeUserFromAllTeamsResult.error}`);
+      }
 
       for (const teamRoom of rooms) {
         const teamId = teamRoom.replace("team:", "");
@@ -144,8 +152,8 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
 
       // 切断時の必須クリーンアップ：Redisからマッピング削除でメモリリーク防止
       const removeResult = await removeSocketUserMapping(redis, socket.id);
-      if (removeResult.isErr()) {
-        console.error(`Failed to remove socket mapping on disconnect: ${removeResult.error}`);
+      if (removeUserFromAllTeamsResult.isErr()) {
+        console.error(`Failed to remove socket mapping on disconnect: ${removeUserFromAllTeamsResult.error}`);
       }
     } catch (error) {
       console.error(`Error handling disconnect:`, error);

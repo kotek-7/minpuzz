@@ -3,31 +3,12 @@ import { env } from "./env.js";
 import { Server } from "socket.io";
 import { registerTeamHandler } from "./socket/teamSocket.js";
 import { createServer } from "http";
-import { RedisClient } from "./repository/redisClient.js";
-import { ok } from "neverthrow";
+import { getRedisClient, connectRedis } from "./repository/redisClientImpl.js";
 
 const port = env.PORT;
 
-// Redis client (実際の本番環境では適切なRedis実装を使用)
-const mockRedisClient: RedisClient = {
-  set: async () => ok(true),
-  get: async () => ok(null),
-  delete: async () => ok(1),
-  hset: async () => ok(1),
-  hget: async () => ok(null),
-  hgetall: async () => ok({}),
-  hdel: async () => ok(1),
-  sadd: async () => ok(1),
-  srem: async () => ok(1),
-  sismember: async () => ok(false),
-  smembers: async () => ok([]),
-  lpush: async () => ok(1),
-  rpush: async () => ok(1),
-  lpop: async () => ok(null),
-  rpop: async () => ok(null),
-  lrange: async () => ok([]),
-  llen: async () => ok(0),
-};
+// 本物のRedisクライアントを使用
+const redisClient = getRedisClient();
 
 const httpServer = createServer(app);
 
@@ -43,7 +24,16 @@ console.log("Socket.io server initialized");
 
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
-  registerTeamHandler(io, socket, mockRedisClient);
+  registerTeamHandler(io, socket, redisClient);
+});
+
+// Redis接続
+connectRedis().then((result) => {
+  if (result.isErr()) {
+    console.error("Failed to connect to Redis:", result.error);
+  } else {
+    console.log("Redis connected successfully");
+  }
 });
 
 // Start server

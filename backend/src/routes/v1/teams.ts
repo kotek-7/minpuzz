@@ -1,39 +1,20 @@
 import express from "express";
 import * as TeamController from "../../controller/team.js";
-import { RedisClient } from "../../repository/redisClient.js";
-import { ok } from "neverthrow";
+import { getRedisClient } from "../../repository/redisClientImpl.js";
 
 const router = express.Router();
 
-// Redis client mock (実際の実装では依存性注入)
-const mockRedisClient: RedisClient = {
-  set: async () => ok(true),
-  get: async () => ok(null),
-  delete: async () => ok(1),
-  hset: async () => ok(1),
-  hget: async () => ok(null),
-  hgetall: async () => ok({}),
-  hdel: async () => ok(1),
-  sadd: async () => ok(1),
-  srem: async () => ok(1),
-  sismember: async () => ok(false),
-  smembers: async () => ok([]),
-  lpush: async () => ok(0),
-  rpush: async () => ok(0),
-  lpop: async () => ok(null),
-  rpop: async () => ok(null),
-  lrange: async () => ok([]),
-  llen: async () => ok(0),
-};
+// 本物のRedisクライアントを使用
+const redisClient = getRedisClient();
 
-router.post("/", TeamController.createTeam(mockRedisClient));
-router.get("/:team_id", TeamController.getTeam(mockRedisClient));
-router.delete("/:team_id", TeamController.deleteTeam(mockRedisClient));
-router.post("/:search", TeamController.searchTeamByNumber(mockRedisClient));
+router.post("/", TeamController.createTeam(redisClient));
+router.get("/:teamId", TeamController.getTeam(redisClient));
+router.delete("/:teamId", TeamController.deleteTeam(redisClient));
+router.post("/:search", TeamController.searchTeamByNumber(redisClient));
 
 // メンバー管理エンドポイント
-router.post("/:team_id/members", TeamController.addMember(mockRedisClient));
-router.get("/:team_id/members", TeamController.getMembers(mockRedisClient));
-router.delete("/:team_id/members/:member_id", TeamController.removeMember(mockRedisClient));
+router.post("/:teamId/members", TeamController.addMember(redisClient));
+router.get("/:teamId/members", TeamController.getMembers(redisClient));
+router.delete("/:teamId/members/:memberId", TeamController.removeMember(redisClient));
 
 export default router;
