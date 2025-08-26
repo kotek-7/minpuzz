@@ -11,7 +11,7 @@ export const isExpired = (info: MatchingTeamInfo, now: Date, ttlMs: number): boo
   const joinedAtMs = toMillis(info.joinedAt);
   const nowMs = now.getTime();
   if (!Number.isFinite(joinedAtMs)) return true; // 不正な日時は無効扱い
-  if (joinedAtMs > nowMs) return true; // 未来日時は無効扱い
+  // わずかな時計のズレや生成順差を許容し、未来日時でも即失効にはしない
   return joinedAtMs + ttlMs < nowMs;
 };
 

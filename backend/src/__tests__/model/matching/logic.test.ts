@@ -22,7 +22,8 @@ describe('matching logic (pure)', () => {
     expect(isExpired(valid, now, ttlMs)).toBe(false);
     expect(isExpired(expired, now, ttlMs)).toBe(true);
     expect(isExpired(invalid, now, ttlMs)).toBe(true);
-    expect(isExpired(future, now, ttlMs)).toBe(true);
+    // future timestamps are tolerated (not expired) to avoid false cleanup due to minor clock skew
+    expect(isExpired(future, now, ttlMs)).toBe(false);
   });
 
   it('cleanupAndSortQueue removes expired and sorts by joinedAt asc; keeps oldest per teamId', () => {
