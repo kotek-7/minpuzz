@@ -39,11 +39,16 @@ sequenceDiagram
         U->>F: チーム参加ボタンをクリック
         F-->>U: チーム番号入力画面を表示
         U->>F: チーム番号を入力・送信
-        F->>B: POST /teams/join<br/>{teamNumber, userId}
+        
+        Note over F,B: 2段階のAPI呼び出し
+        F->>B: POST /teams/{teamNumber}<br/>{teamNumber}
         
         alt チーム番号が有効
             B->>R: チーム存在確認
             R-->>B: チーム情報を返却
+            B-->>F: チーム情報を返却
+            
+            F->>B: POST /teams/{teamId}/members<br/>{userId}
             B->>R: ユーザーをチームに追加
             R-->>B: 追加完了
             B-->>F: チーム参加成功
@@ -55,9 +60,9 @@ sequenceDiagram
             B->>R: チームメンバー情報を更新
             B->>F: Socket broadcast: memberJoined<br/>(既存メンバーに通知)
             
-        else チーム番号が無効
-            B-->>F: エラー: チームが見つからない
-            F-->>U: エラーメッセージ表示<br/>「チーム番号が見つかりません」
+        else チーム番号が無効 or チーム満員
+            B-->>F: エラー: チームが見つからない or チーム満員
+            F-->>U: エラーメッセージ表示<br/>「チーム番号が見つかりません」<br/>または「チームは満員です」
         end
     end
 
