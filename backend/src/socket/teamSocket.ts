@@ -17,6 +17,7 @@ import { getTeamRoom, addSocketUserMapping, removeSocketUserMapping, getUserBySo
 import * as TeamModel from "../model/team/team.js";
 import * as Matching from "../model/matching/matching.js";
 import * as GameSession from "../model/game/session.js";
+import { redisKeys } from "../repository/redisKeys.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
@@ -247,9 +248,24 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       }
       if (recordResult.value.allConnected) {
         const gameStartPayload: GameStartPayload = { matchId, timestamp: new Date().toISOString() };
-        // 相方チームのIDはmatchから得られるが、ここではブロードキャストで両チームへ送るため、全体へemit
-        // チーム別にemitする場合はmatchを再取得して両チームroomへ送信
-        io.emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+        // 両チームのroomに限定してブロードキャスト
+        const matchRaw = await redis.get(redisKeys.match(matchId));
+        if (matchRaw.isOk() && matchRaw.value) {
+          try {
+            const match = JSON.parse(matchRaw.value) as { teamA: { teamId: string }; teamB: { teamId: string } };
+            const roomA = getTeamRoom(match.teamA.teamId);
+            const roomB = getTeamRoom(match.teamB.teamId);
+            io.to(roomA).emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+            io.to(roomB).emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+          } catch (e) {
+            console.error("Failed to parse match for GAME_START rooms:", e);
+            // フォールバックで、少なくともこのteamのroomへは通知
+            io.to(getTeamRoom(teamId)).emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+          }
+        } else {
+          // フォールバック: 少なくともこのteamのroomへ通知
+          io.to(getTeamRoom(teamId)).emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+        }
       }
     } catch (error) {
       console.error(`Error on JOIN_GAME:`, error);
