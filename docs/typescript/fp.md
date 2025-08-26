@@ -213,26 +213,6 @@ test("cancelOrder throws for completed orders", () => {
 });
 ```
 
-## Integration with Infrastructure
-
-Keep side effects at the boundaries (repository layer) and test them with integration tests:
-
-```typescript
-// repository/interface.ts
-import { Result } from "neverthrow";
-
-export interface Repository<TEntity, TId> {
-  findById(id: TId): Promise<Result<TEntity | null, Error>>;
-  save(entity: TEntity): Promise<Result<void, Error>>;
-}
-
-// Real-time communication handlers should also be tested as infrastructure
-export interface SocketHandler {
-  handleConnection(socket: Socket): Promise<Result<void, Error>>;
-  broadcastToRoom(room: string, event: string, data: unknown): Promise<Result<void, Error>>;
-}
-```
-
 ## AI Assistant Prompt Integration
 
 Add to your CLAUDE.md or project prompts:
@@ -243,16 +223,9 @@ Add to your CLAUDE.md or project prompts:
 When implementing domain logic:
 
 1. **Use Algebraic Data Types**: Model domain with sum types (tagged unions) and product types
-2. **Keep Core Pure**: All functions in `model/` must be pure and synchronous (no async/await)
+2. **Keep Core Pure**: All functions in `model/` must be pure
 3. **Use Branded Types**: Wrap primitive types (string IDs, etc.) with branded types
 4. **Test Domain Logic**: Write unit tests for all domain functions
-5. **Test Infrastructure**: Write integration tests for all IO operations in `repository/`
-6. **Separate Concerns**: Keep side effects in `repository/`, pure logic in `model/`
-
-Example structure:
-- `model/` - Pure domain models and business logic (unit tests)
-- `repository/` - Database, cache, real-time communication handlers (integration tests)
-- `controller/` - Application services that coordinate between model and view
 ```
 
 ## Best Practices
@@ -265,8 +238,6 @@ Example structure:
 - Test domain logic thoroughly
 
 ### Don't:
-- Put async functions in model domain
-- Mix infrastructure concerns with domain logic
 - Use classes for pure data (prefer types/interfaces)
 - Throw exceptions in domain logic (use Result types)
 
@@ -277,11 +248,3 @@ Example structure:
 3. **Maintainability**: Clear separation of concerns
 4. **Refactoring**: Type system guides safe changes
 5. **Documentation**: Types serve as living documentation
-
-## Next Steps
-
-1. Start with modeling your domain types
-2. Implement pure functions for business logic
-3. Add branded types for all IDs and values
-4. Write comprehensive tests for domain logic
-5. Build repository adapters around the pure model
