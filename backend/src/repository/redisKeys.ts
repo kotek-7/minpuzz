@@ -31,4 +31,8 @@ export const redisKeys = {
   // WebSocketセッション管理：複数サーバー間での共有セッション対応
   socketToUser: (socketId: string) => RedisStringKey(`socket:${socketId}:user`),
   userToSocket: (userId: string) => RedisStringKey(`user:${userId}:socket`),
+
+  // マッチング待機チーム管理
+  matchingQueue: () => RedisSetKey(`matching:queue`),
+  matchingTeam: (teamId: string) => RedisStringKey(`matching:team:${teamId}`),
 } as const;

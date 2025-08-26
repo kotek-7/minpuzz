@@ -49,3 +49,9 @@ export enum MemberStatus {
   // 一時切断中（30秒でタイムアウト・自動除名）
   DISCONNECTED = "DISCONNECTED",
 }
+
+export interface MatchingTeamInfo {
+  teamId: string;
+  memberCount: number;
+  joinedAt: string; // ISO8601形式
+}

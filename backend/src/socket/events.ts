@@ -6,6 +6,10 @@ export const SOCKET_EVENTS = {
   MEMBER_JOINED: 'member-joined',
   MEMBER_LEFT: 'member-left',
   TEAM_UPDATED: 'team-updated',
+
+  // マッチング関連
+  JOIN_MATCHING_QUEUE: 'join-matching-queue',
+  NAVIGATE_TO_MATCHING: 'navigate-to-matching',
 } as const;
 
 export type SocketEvents = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
@@ -35,5 +39,15 @@ export interface MemberLeftPayload {
 export interface TeamUpdatedPayload {
   teamId: string;
   memberCount: number;
+  timestamp: string;
+}
+
+export interface JoinMatchingQueuePayload {
+  teamId: string;
+  userId: string;
+}
+
+export interface NavigateToMatchingPayload {
+  teamId: string;
   timestamp: string;
 }

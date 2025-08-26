@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { RedisClient } from "../../repository/redisClient.js";
-import { MemberRole, MemberStatus, Team, TeamMember, TeamStatus } from "./types.js";
+import { MemberRole, MemberStatus, Team, TeamMember, TeamStatus, MatchingTeamInfo } from "./types.js";
 import { redisKeys } from "../../repository/redisKeys.js";
 import { err, ok, Result } from "neverthrow";
 
@@ -13,6 +13,8 @@ export const RedisTTL = {
   SOCKET_SESSION: 1800,
   // チーム番号の再利用防止期間
   TEAM_NUMBER: 3600 * 4,
+  // マッチング待機タイムアウト（10分）
+  MATCHING_QUEUE: 600,
 } as const;
 
 // Utility functions
@@ -261,4 +263,126 @@ export const startMatching = async (redis: RedisClient, teamId: string): Promise
   if (!updateResult.value) return err("failed to update team data");
 
   return ok(team);
+};
+
+/**
+ * チームをマッチング待機リストに追加する
+ */
+export const addTeamToMatchingQueue = async (
+  redis: RedisClient, 
+  teamId: string
+): Promise<Result<MatchingTeamInfo, string>> => {
+  // チーム存在確認
+  const teamResult = await getTeam(redis, teamId);
+  if (teamResult.isErr()) return err(`could not retrieve team: ${teamResult.error}`);
+  if (!teamResult.value) return err("team not found");
+
+  const team = teamResult.value;
+
+  // チームステータスがMATCHING状態であることを確認
+  if (team.status !== TeamStatus.MATCHING) {
+    return err(`team is not in matching state: current status is ${team.status}`);
+  }
+
+  const matchingTeamInfo: MatchingTeamInfo = {
+    teamId,
+    memberCount: team.currentMembers,
+    joinedAt: new Date().toISOString(),
+  };
+
+  // Redis Setにteamidを追加
+  const queueAddResult = await redis.sadd(redisKeys.matchingQueue(), teamId);
+  if (queueAddResult.isErr()) return err(`failed to add team to matching queue: ${queueAddResult.error}`);
+
+  // Redis Stringにteam情報を保存
+  const teamInfoResult = await redis.set(
+    redisKeys.matchingTeam(teamId), 
+    JSON.stringify(matchingTeamInfo), 
+    RedisTTL.MATCHING_QUEUE
+  );
+  if (teamInfoResult.isErr()) return err(`failed to save team matching info: ${teamInfoResult.error}`);
+  if (!teamInfoResult.value) return err("failed to save team matching data");
+
+  return ok(matchingTeamInfo);
+};
+
+/**
+ * チームをマッチング待機リストから削除する
+ */
+export const removeTeamFromMatchingQueue = async (
+  redis: RedisClient, 
+  teamId: string
+): Promise<Result<boolean, string>> => {
+  // Redis Setからteamidを削除
+  const queueRemoveResult = await redis.srem(redisKeys.matchingQueue(), teamId);
+  if (queueRemoveResult.isErr()) return err(`failed to remove team from matching queue: ${queueRemoveResult.error}`);
+
+  // Redis Stringのteam情報を削除
+  const teamInfoRemoveResult = await redis.del(redisKeys.matchingTeam(teamId));
+  if (teamInfoRemoveResult.isErr()) return err(`failed to remove team matching info: ${teamInfoRemoveResult.error}`);
+
+  return ok(true);
+};
+
+/**
+ * マッチング待機中のチーム一覧を取得する
+ */
+export const getMatchingQueueTeams = async (
+  redis: RedisClient
+): Promise<Result<MatchingTeamInfo[], string>> => {
+  // Redis Setから全てのteamIDを取得
+  const teamIdsResult = await redis.smembers(redisKeys.matchingQueue());
+  if (teamIdsResult.isErr()) return err(`failed to get team IDs from matching queue: ${teamIdsResult.error}`);
+
+  const teamIds = teamIdsResult.value || [];
+  if (teamIds.length === 0) {
+    return ok([]);
+  }
+
+  // 各teamIDの詳細情報をRedis Stringから並行取得
+  const teamInfoPromises = teamIds.map(async (teamId) => {
+    const infoResult = await redis.get(redisKeys.matchingTeam(teamId));
+    if (infoResult.isErr()) return null;
+    if (!infoResult.value) {
+      // 存在しないteamIDを自動クリーンアップ
+      await redis.srem(redisKeys.matchingQueue(), teamId);
+      return null;
+    }
+    try {
+      return JSON.parse(infoResult.value) as MatchingTeamInfo;
+    } catch {
+      // パース失敗時も自動クリーンアップ
+      await redis.srem(redisKeys.matchingQueue(), teamId);
+      await redis.del(redisKeys.matchingTeam(teamId));
+      return null;
+    }
+  });
+
+  const teamInfos = await Promise.all(teamInfoPromises);
+  
+  // null値を除外し、joinedAt順でソート
+  const validTeamInfos = teamInfos
+    .filter((info): info is MatchingTeamInfo => info !== null)
+    .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
+
+  return ok(validTeamInfos);
+};
+
+/**
+ * マッチング相手を見つける（指定チーム以外で最初の相手を返却）
+ */
+export const findMatchingPartner = async (
+  redis: RedisClient, 
+  excludeTeamId: string
+): Promise<Result<MatchingTeamInfo | null, string>> => {
+  // マッチング待機チーム一覧を取得
+  const teamsResult = await getMatchingQueueTeams(redis);
+  if (teamsResult.isErr()) return err(`failed to get matching queue teams: ${teamsResult.error}`);
+
+  const teams = teamsResult.value;
+  
+  // 指定されたチームを除外し、最初のチームを返却
+  const partner = teams.find(team => team.teamId !== excludeTeamId);
+  
+  return ok(partner || null);
 };

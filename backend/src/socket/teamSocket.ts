@@ -7,6 +7,8 @@ import {
   MemberJoinedPayload,
   MemberLeftPayload,
   TeamUpdatedPayload,
+  JoinMatchingQueuePayload,
+  NavigateToMatchingPayload,
 } from "./events.js";
 import { getTeamRoom, addSocketUserMapping, removeSocketUserMapping, getUserBySocketId } from "./utils.js";
 import * as TeamModel from "../model/team/team.js";
@@ -157,6 +159,51 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       }
     } catch (error) {
       console.error(`Error handling disconnect:`, error);
+    }
+  });
+
+  // マッチング関連イベント
+  socket.on(SOCKET_EVENTS.JOIN_MATCHING_QUEUE, async (payload: JoinMatchingQueuePayload) => {
+    try {
+      const { teamId, userId } = payload;
+      console.log(`User ${userId} (${socket.id}) joining matching queue for team ${teamId}`);
+
+      // チームの存在確認
+      const teamResult = await TeamModel.getTeam(redis, teamId);
+      if (teamResult.isErr()) {
+        console.error(`Failed to get team ${teamId}: ${teamResult.error}`);
+        socket.emit("error", { message: "Team not found" });
+        return;
+      }
+
+      if (!teamResult.value) {
+        console.error(`Team ${teamId} not found`);
+        socket.emit("error", { message: "Team not found" });
+        return;
+      }
+
+      const team = teamResult.value;
+
+      // チームステータスがMATCHING状態であることを確認
+      if (team.status !== 'MATCHING') {
+        console.error(`Team ${teamId} is not in matching state, current status: ${team.status}`);
+        socket.emit("error", { message: "Team is not ready for matching" });
+        return;
+      }
+
+      // チーム全体にマッチング画面への遷移を通知
+      const teamRoom = getTeamRoom(teamId);
+      const navigatePayload: NavigateToMatchingPayload = {
+        teamId,
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log(`Broadcasting navigate to matching for team ${teamId}`);
+      io.to(teamRoom).emit(SOCKET_EVENTS.NAVIGATE_TO_MATCHING, navigatePayload);
+
+    } catch (error) {
+      console.error(`Error joining matching queue:`, error);
+      socket.emit("error", { message: "Failed to join matching queue" });
     }
   });
 }
