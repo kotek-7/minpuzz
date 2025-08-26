@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 export const WaitngStudio = () => {
   const members = ["player1 さん", "player2 さん"];
 
@@ -7,8 +9,8 @@ export const WaitngStudio = () => {
     <div
       className="flex flex-col justify-center items-center min-h-screen bg-white px-5"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
-      <button className="absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
-        く
+      <button className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
       </button>
         <h2 className="text-[23px] text-black font-bold  mb-2 text-[#007f9e] text-center">メンバーを待機中…</h2>        
         <p className="text-center mb-5">メンバーの参加を待っています</p>

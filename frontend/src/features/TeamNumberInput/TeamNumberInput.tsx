@@ -10,8 +10,8 @@ export const TeamNumberInput = () => {
       className="flex flex-col justify-center items-center min-h-screen bg-white px-5"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
     >
-      <button className="absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
-        く
+      <button className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
       </button>
 
       <div className="w-full bg-white border-2 border-[#00bcd4] rounded-xl p-6 text-center shadow-xl">
