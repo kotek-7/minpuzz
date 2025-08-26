@@ -11,6 +11,8 @@ export const SOCKET_EVENTS = {
   JOIN_MATCHING_QUEUE: 'join-matching-queue',
   NAVIGATE_TO_MATCHING: 'navigate-to-matching',
   MATCH_FOUND: 'match-found',
+  JOIN_GAME: 'join-game',
+  GAME_START: 'game-start',
 } as const;
 
 export type SocketEvents = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
@@ -64,5 +66,16 @@ export interface MatchFoundPayload {
     teamId: string;
     memberCount: number;
   };
+  timestamp: string;
+}
+
+export interface JoinGamePayload {
+  matchId: string;
+  teamId: string;
+  userId: string;
+}
+
+export interface GameStartPayload {
+  matchId: string;
   timestamp: string;
 }

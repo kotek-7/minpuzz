@@ -10,10 +10,13 @@ import {
   JoinMatchingQueuePayload,
   NavigateToMatchingPayload,
   MatchFoundPayload,
+  JoinGamePayload,
+  GameStartPayload,
 } from "./events.js";
 import { getTeamRoom, addSocketUserMapping, removeSocketUserMapping, getUserBySocketId } from "./utils.js";
 import * as TeamModel from "../model/team/team.js";
 import * as Matching from "../model/matching/matching.js";
+import * as GameSession from "../model/game/session.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
@@ -229,6 +232,29 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
     } catch (error) {
       console.error(`Error joining matching queue:`, error);
       socket.emit("error", { message: "Failed to join matching queue" });
+    }
+  });
+
+  // ゲーム接続フェーズ: 各プレイヤーの接続登録
+  socket.on(SOCKET_EVENTS.JOIN_GAME, async (payload: JoinGamePayload) => {
+    try {
+      const { matchId, teamId, userId } = payload;
+      const rec = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
+      if (rec.isErr()) {
+        console.error(`recordPlayerConnected failed: ${rec.error}`);
+        socket.emit("error", { message: "Failed to join game" });
+        return;
+      }
+      if (rec.value.allConnected) {
+        const gameStart: GameStartPayload = { matchId, timestamp: new Date().toISOString() };
+        const roomA = getTeamRoom(teamId);
+        // 相方チームのIDはmatchから得られるが、ここではブロードキャストで両チームへ送るため、全体へemit
+        // チーム別にemitする場合はmatchを再取得して両チームroomへ送信
+        io.emit(SOCKET_EVENTS.GAME_START, gameStart);
+      }
+    } catch (error) {
+      console.error(`Error on JOIN_GAME:`, error);
+      socket.emit("error", { message: "Failed to process game join" });
     }
   });
 }
