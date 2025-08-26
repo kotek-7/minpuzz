@@ -17,4 +17,7 @@ router.post("/:teamId/members", TeamController.addMember(redisClient));
 router.get("/:teamId/members", TeamController.getMembers(redisClient));
 router.delete("/:teamId/members/:memberId", TeamController.removeMember(redisClient));
 
+// マッチング開始エンドポイント
+router.post("/:teamId/startMatching", TeamController.startMatching(redisClient));
+
 export default router;

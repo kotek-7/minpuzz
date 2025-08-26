@@ -368,3 +368,40 @@ export const removeUserFromAllTeams = (redis: RedisClient) => {
     }
   };
 };
+
+export const startMatching = (redis: RedisClient) => {
+  return async (req: Request, res: Response) => {
+    try {
+      const validationResult = validate(teamIdSchema, req.params);
+      if (validationResult.isErr()) {
+        res.status(400).json({
+          error: "Invalid team ID",
+          message: validationResult.error,
+        });
+        return;
+      }
+
+      const matchingResult = await TeamModel.startMatching(redis, validationResult.value.teamId);
+
+      if (matchingResult.isErr()) {
+        const statusCode = matchingResult.error === "team not found" ? 404 : 400;
+        res.status(statusCode).json({
+          error: "Failed to start matching",
+          message: matchingResult.error,
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Matching started successfully",
+        data: matchingResult.value,
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to start matching",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+};

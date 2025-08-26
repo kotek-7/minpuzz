@@ -241,3 +241,24 @@ export const removeUserFromAllTeams = async (redis: RedisClient, userId: string)
 
   return ok({ removedFromTeams, deletedTeams });
 };
+
+export const startMatching = async (redis: RedisClient, teamId: string): Promise<Result<Team, string>> => {
+  const teamResult = await getTeam(redis, teamId);
+  if (teamResult.isErr()) return err(`could not retrieve team: ${teamResult.error}`);
+  if (!teamResult.value) return err("team not found");
+
+  const team = teamResult.value;
+
+  if (team.status !== TeamStatus.READY && team.status !== TeamStatus.WAITING) {
+    return err(`cannot start matching: team status is ${team.status}`);
+  }
+
+  team.status = TeamStatus.MATCHING;
+  team.updatedAt = new Date().toISOString();
+
+  const updateResult = await redis.set(redisKeys.team(teamId), JSON.stringify(team), RedisTTL.TEAM_SESSION);
+  if (updateResult.isErr()) return err(`failed to update team status: ${updateResult.error}`);
+  if (!updateResult.value) return err("failed to update team data");
+
+  return ok(team);
+};
