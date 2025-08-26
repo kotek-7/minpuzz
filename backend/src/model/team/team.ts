@@ -206,7 +206,7 @@ export const updateMemberStatus = async (
 
   const setStatusResult = await redis.hset(redisKeys.teamMembers(teamId), memberId, JSON.stringify(member));
   if (setStatusResult.isErr()) return err(setStatusResult.error);
-  if (setStatusResult.value === 0) return err("failed to update member status in team members hash");
+  // 既存フィールド更新時は0が返る実装があるため、0/1いずれも成功として扱う
 
   return ok();
 };
@@ -318,7 +318,7 @@ export const removeTeamFromMatchingQueue = async (
   const queueRemoveResult = await redis.srem(redisKeys.matchingQueue(), teamId);
   if (queueRemoveResult.isErr()) return err(`failed to remove team from matching queue: ${queueRemoveResult.error}`);
 
-  const teamInfoRemoveResult = await redis.del(redisKeys.matchingTeam(teamId));
+  const teamInfoRemoveResult = await redis.delete(redisKeys.matchingTeam(teamId));
   if (teamInfoRemoveResult.isErr()) return err(`failed to remove team matching info: ${teamInfoRemoveResult.error}`);
 
   return ok(true);
@@ -353,7 +353,7 @@ export const getMatchingQueueTeams = async (
     } catch {
       // 例外対応: JSONパース失敗時の自動データクリーンアップ
       await redis.srem(redisKeys.matchingQueue(), teamId);
-      await redis.del(redisKeys.matchingTeam(teamId));
+      await redis.delete(redisKeys.matchingTeam(teamId));
       return null;
     }
   });
