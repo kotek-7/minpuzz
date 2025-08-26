@@ -10,6 +10,7 @@ export const SOCKET_EVENTS = {
   // マッチング関連
   JOIN_MATCHING_QUEUE: 'join-matching-queue',
   NAVIGATE_TO_MATCHING: 'navigate-to-matching',
+  MATCH_FOUND: 'match-found',
 } as const;
 
 export type SocketEvents = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
@@ -49,5 +50,19 @@ export interface JoinMatchingQueuePayload {
 
 export interface NavigateToMatchingPayload {
   teamId: string;
+  timestamp: string;
+}
+
+export interface MatchFoundPayload {
+  // 対戦確定の一意識別子（フロント側で重複受信の排除・追跡に利用）
+  matchId: string;
+  self: {
+    teamId: string;
+    memberCount: number;
+  };
+  partner: {
+    teamId: string;
+    memberCount: number;
+  };
   timestamp: string;
 }

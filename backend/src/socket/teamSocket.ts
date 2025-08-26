@@ -9,9 +9,11 @@ import {
   TeamUpdatedPayload,
   JoinMatchingQueuePayload,
   NavigateToMatchingPayload,
+  MatchFoundPayload,
 } from "./events.js";
 import { getTeamRoom, addSocketUserMapping, removeSocketUserMapping, getUserBySocketId } from "./utils.js";
 import * as TeamModel from "../model/team/team.js";
+import * as Matching from "../model/matching/matching.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
@@ -200,7 +202,30 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
 
       console.log(`Broadcasting navigate to matching for team ${teamId}`);
       io.to(teamRoom).emit(SOCKET_EVENTS.NAVIGATE_TO_MATCHING, navigatePayload);
+      // 成立判定はドメインに委譲。成立時だけ通知する（待機時は何もしない）
+      const result = await Matching.joinQueue(redis, teamId);
+      if (result.isErr()) {
+        console.error(`joinQueue failed for team ${teamId}: ${result.error}`);
+        // バックエンド内部エラーはフロントへ露出しすぎないよう小さく通知
+        socket.emit("error", { message: "Failed to process matching" });
+        return;
+      }
 
+      if (result.value.type === "found") {
+        const { matchId, self, partner } = result.value;
+        const payload: MatchFoundPayload = {
+          matchId,
+          self: { teamId: self.teamId, memberCount: self.memberCount },
+          partner: { teamId: partner.teamId, memberCount: partner.memberCount },
+          timestamp: new Date().toISOString(),
+        };
+
+        const selfRoom = getTeamRoom(self.teamId);
+        const partnerRoom = getTeamRoom(partner.teamId);
+        console.log(`Match found ${matchId}: ${self.teamId} vs ${partner.teamId}`);
+        io.to(selfRoom).emit(SOCKET_EVENTS.MATCH_FOUND, payload);
+        io.to(partnerRoom).emit(SOCKET_EVENTS.MATCH_FOUND, payload);
+      }
     } catch (error) {
       console.error(`Error joining matching queue:`, error);
       socket.emit("error", { message: "Failed to join matching queue" });
