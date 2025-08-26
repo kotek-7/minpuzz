@@ -56,24 +56,4 @@ sequenceDiagram
         F2-->>U2: ゲーム接続画面を表示
     end
 
-    Note over F1,F2: ゲーム接続フェーズ（プレイヤー接続登録）
-    par 両チームが並行接続
-        F1->>B: Socket emit: join-game（matchId, teamId, userId）
-        B->>R: match:{matchId}:team:{teamId}:connected に userId を登録
-    and
-        F2->>B: Socket emit: join-game（matchId, teamId, userId）
-        B->>R: match:{matchId}:team:{teamId}:connected に userId を登録
-    end
-
-    B->>R: 接続数を確認（teamA/B が期待人数に到達?）
-    alt 全プレイヤーが接続完了
-        R-->>B: 達成
-        B->>R: match を READY に更新、チーム両方を IN_GAME に更新
-        Note over B: ゲーム開始通知
-        B->>F1: Socket to teamA room: game-start
-        B->>F2: Socket to teamB room: game-start
-    else まだ接続待ち
-        Note over U1,U2: 接続待ち表示を継続
-    end
-
-    Note over U1,U2: GAME_START 受信後、リアルタイムジグソーパズルゲーム開始
+    Note over U1,U2: 以降のゲーム接続フェーズは sequence-game-connection.mmd を参照
