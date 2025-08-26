@@ -23,6 +23,7 @@ export default function DifficultySelection() {
     <div className="flex min-h-screen flex-col items-center bg-[#FFFFFF]"  style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
       {/* 戻るボタンのコンポーネントです。 */}
       <button className="self-start m-4 w-12 h-12 rounded-full bg-[#44C7D0] text-white flex items-center justify-center"
+      style={{ boxShadow: '0px 2px 4px 0px rgba(0, 0, 0, 0.25)' }}
       //押された時に戻る
       onClick={() => router.push('/')}
       >
@@ -43,11 +44,12 @@ export default function DifficultySelection() {
             //ボタンがクリックされたときに、state を更新します。
             onClick={() => setSelectedDifficulty(difficulty.value as Difficulty)}
             className={`
-              w-full rounded-2xl p-4 text-center shadow-lg border-2 border-[#32acb4] 
+              w-full rounded-2xl p-4 text-center border-2 border-[#32acb4] 
               ${selectedDifficulty === difficulty.value
                 ? "bg-[#cdedef]" //選択時
                 : "bg-white"} // 非選択時
             `}
+           style={{boxShadow:'0px 2px 4px 0px rgba(0, 0, 0, 0.25)'}}  
           >
             <h2 className="text-2xl font-semibold text-black">{difficulty.level}</h2>
             <p className="mt-1 text-base text-black">{difficulty.description}</p>
@@ -58,11 +60,15 @@ export default function DifficultySelection() {
       {/* 「これでチームを作る！」ボタンです。 */}
       <button
         className={`
-          mt-6 mb-3 w-2/3 max-w-sm rounded-2xl p-4 text-xl text-black shadow-xl border-2 border-[#9C7931]
+          mt-6 mb-3 w-2/3 max-w-sm rounded-2xl p-4 text-xl text-black border-2 border-[#9C7931]
           ${selectedDifficulty
             ? "bg-[#f5b12a]" //選択時
-            : "bg-gray-400"} //非選択時
+            :"bg-gray-400"} //非選択時
         `}
+          style={{boxShadow: selectedDifficulty 
+            ? '0px 8px 12px 0px rgba(245, 177, 42, 0.5)' // 選択時の影
+            : '0px 2px 4px 0px rgba(0, 0, 0, 0.25)' // 非選択時の影
+  }}
         //難易度が選択されるまでボタンを無効化します。
         disabled={!selectedDifficulty}
         //チーム作成ボタンが押された時
