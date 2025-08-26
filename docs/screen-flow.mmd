@@ -1,0 +1,67 @@
+%%{init:{'theme':'default'}}%%
+flowchart TD
+    %% 画面: ホーム画面
+    Home["🏠 ホーム画面<br/>(Home)"]
+    
+    %% アクション: ボタンクリック
+    CreateTeamAction{{"🆕 チーム作成ボタンクリック<br/>"}}
+    JoinTeamAction{{"👥 チーム参加ボタンクリック<br/>"}}
+    
+    %% 画面: 難易度選択画面
+    DifficultySelect["⚙️ 難易度選択画面<br/>(DifficultySelection)<br/>・初級 (Easy)<br/>・中級 (Medium)<br/>・上級 (Hard)<br/>・その他 (Other)"]
+    
+    %% 画面: チーム番号入力画面
+    TeamNumberInput["🔢 チーム番号入力画面<br/>(TeamNumberInput)<br/>チーム番号: 12345"]
+    
+    %% 画面: チーム待機画面
+    TeamWaiting["⏳ チーム待機画面<br/>(TeamWaiting)<br/>チーム番号: 12345<br/>👤 幻像<br/>📝 チームメンバー<br/>1. はなかっぱ<br/>2. みなかっぱ<br/>3. かなで<br/>4. たろう"]
+
+    %% 画面: マッチング画面
+    Matching["🎯 マッチング画面<br/>(Matching)<br/>対戦相手を探しています..."]
+    
+    %% イベント: マッチング成立
+    MatchFoundEvent{{"✅ マッチング成立<br/>vs チーム○○"}}
+
+    %% 画面: ゲーム画面
+    GamePlay["🧩 ゲーム画面<br/>(GamePlay)<br/>リアルタイム<br/>ジグソーパズル"]
+
+    %% イベント: ゲーム結果
+    VictoryEvent{{"🎉 勝利演出<br/>"}}
+    DefeatEvent{{"😢 敗北演出<br/>"}}
+
+    %% 画面: 結果画面
+    ResultScreen["📊 結果画面<br/>(ResultScreen)<br/>ゲーム統計"]
+    
+    %% フロー定義
+    Home --> CreateTeamAction
+    Home --> JoinTeamAction
+    
+    CreateTeamAction --> DifficultySelect
+    DifficultySelect --> TeamWaiting
+    
+    JoinTeamAction --> TeamNumberInput
+    TeamNumberInput --> TeamWaiting
+    
+    TeamWaiting --> Matching
+    Matching --> MatchFoundEvent
+    MatchFoundEvent --> GamePlay
+    
+    GamePlay --> VictoryEvent
+    GamePlay --> DefeatEvent
+    
+    VictoryEvent --> ResultScreen
+    DefeatEvent --> ResultScreen
+    
+    ResultScreen --> Home
+    
+    %% スタイリング
+    classDef screenStyle fill:#007aff,stroke:#0056cc,color:#fff,stroke-width:3px
+    classDef actionStyle fill:#ff9500,stroke:#e6860a,color:#fff,stroke-width:2px
+    classDef eventStyle fill:#34c759,stroke:#28a745,color:#fff,stroke-width:2px
+    
+    %% 画面ノード (四角)
+    class Home,DifficultySelect,TeamNumberInput,TeamWaiting,Matching,GamePlay,ResultScreen screenStyle
+    
+    %% アクション・イベントノード (丸角)
+    class CreateTeamAction,JoinTeamAction actionStyle
+    class MatchFoundEvent,VictoryEvent,DefeatEvent eventStyle

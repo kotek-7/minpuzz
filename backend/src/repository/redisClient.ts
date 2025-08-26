@@ -14,6 +14,7 @@ export interface RedisClient {
   srem(key: RedisSetKey, member: string): Promise<Result<number, string>>;
   sismember(key: RedisSetKey, member: string): Promise<Result<boolean, string>>;
   smembers(key: RedisSetKey): Promise<Result<string[], string>>;
+  keys(pattern: string): Promise<Result<string[], string>>;
   lpush(key: RedisListKey, value: string): Promise<Result<number, string>>;
   rpush(key: RedisListKey, value: string): Promise<Result<number, string>>;
   lpop(key: RedisListKey): Promise<Result<string | null, string>>;

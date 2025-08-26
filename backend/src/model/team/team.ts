@@ -113,7 +113,7 @@ export const deleteTeam = async (redis: RedisClient, teamId: string): Promise<Re
   if (deleteTeamResult.isErr()) return err(deleteTeamResult.error);
   if (!deleteTeamResult.value[0]) return err("failed to delete team data");
   if (!deleteTeamResult.value[1]) return err("failed to delete team number index");
-  if (!deleteTeamResult.value[2]) return err("failed to delete team members");
+  if (!deleteTeamResult.value[2]) { /**/ };
   if (deleteTeamResult.value[3] === 0) return err("failed to remove team number from active set");
 
   return ok();
@@ -207,4 +207,37 @@ export const updateMemberStatus = async (
   if (setStatusResult.value === 0) return err("failed to update member status in team members hash");
 
   return ok();
+};
+
+export const removeUserFromAllTeams = async (redis: RedisClient, userId: string): Promise<Result<{ removedFromTeams: string[], deletedTeams: string[] }, string>> => {
+  const teamKeysResult = await redis.keys("team:*");
+  if (teamKeysResult.isErr()) return err(`failed to get team keys: ${teamKeysResult.error}`);
+
+  const teamKeys = teamKeysResult.value.filter(key => key.match(/^team:[0-9a-f-]{36}$/));
+  const removedFromTeams: string[] = [];
+  const deletedTeams: string[] = [];
+
+  for (const teamKey of teamKeys) {
+    const teamId = teamKey.replace("team:", "");
+    
+    const teamResult = await getTeam(redis, teamId);
+    if (teamResult.isErr()) continue;
+    if (!teamResult.value) continue;
+
+    const teamMembersResult = await redis.hget(redisKeys.teamMembers(teamId), userId);
+    if (teamMembersResult.isErr()) continue;
+    if (!teamMembersResult.value) continue;
+
+    const removeResult = await removeMember(redis, teamId, userId);
+    if (removeResult.isOk()) {
+      removedFromTeams.push(teamId);
+      
+      const teamAfterRemoval = await getTeam(redis, teamId);
+      if (teamAfterRemoval.isErr() || !teamAfterRemoval.value) {
+        deletedTeams.push(teamId);
+      }
+    }
+  }
+
+  return ok({ removedFromTeams, deletedTeams });
 };

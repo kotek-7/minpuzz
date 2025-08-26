@@ -3,7 +3,8 @@ import { z } from "zod/v4";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(3000),
-  CORS_ORIGIN: z.string().default("http://localhost:3000").transform(str => str.split(",").map(origin => origin.trim())),
+  CORS_ORIGIN: z.string().default("http://localhost:3000"),
+  REDIS_URL: z.string().default("redis://localhost:6379"),
 });
 
 try {
