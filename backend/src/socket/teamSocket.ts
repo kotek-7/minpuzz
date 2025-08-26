@@ -206,17 +206,17 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       console.log(`Broadcasting navigate to matching for team ${teamId}`);
       io.to(teamRoom).emit(SOCKET_EVENTS.NAVIGATE_TO_MATCHING, navigatePayload);
       // 成立判定はドメインに委譲。成立時だけ通知する（待機時は何もしない）
-      const result = await Matching.joinQueue(redis, teamId);
-      if (result.isErr()) {
-        console.error(`joinQueue failed for team ${teamId}: ${result.error}`);
+      const joinQueueResult = await Matching.joinQueue(redis, teamId);
+      if (joinQueueResult.isErr()) {
+        console.error(`joinQueue failed for team ${teamId}: ${joinQueueResult.error}`);
         // バックエンド内部エラーはフロントへ露出しすぎないよう小さく通知
         socket.emit("error", { message: "Failed to process matching" });
         return;
       }
 
-      if (result.value.type === "found") {
-        const { matchId, self, partner } = result.value;
-        const payload: MatchFoundPayload = {
+      if (joinQueueResult.value.type === "found") {
+        const { matchId, self, partner } = joinQueueResult.value;
+        const matchFoundPayload: MatchFoundPayload = {
           matchId,
           self: { teamId: self.teamId, memberCount: self.memberCount },
           partner: { teamId: partner.teamId, memberCount: partner.memberCount },
@@ -226,8 +226,8 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
         const selfRoom = getTeamRoom(self.teamId);
         const partnerRoom = getTeamRoom(partner.teamId);
         console.log(`Match found ${matchId}: ${self.teamId} vs ${partner.teamId}`);
-        io.to(selfRoom).emit(SOCKET_EVENTS.MATCH_FOUND, payload);
-        io.to(partnerRoom).emit(SOCKET_EVENTS.MATCH_FOUND, payload);
+        io.to(selfRoom).emit(SOCKET_EVENTS.MATCH_FOUND, matchFoundPayload);
+        io.to(partnerRoom).emit(SOCKET_EVENTS.MATCH_FOUND, matchFoundPayload);
       }
     } catch (error) {
       console.error(`Error joining matching queue:`, error);
@@ -239,18 +239,17 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
   socket.on(SOCKET_EVENTS.JOIN_GAME, async (payload: JoinGamePayload) => {
     try {
       const { matchId, teamId, userId } = payload;
-      const rec = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
-      if (rec.isErr()) {
-        console.error(`recordPlayerConnected failed: ${rec.error}`);
+      const recordResult = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
+      if (recordResult.isErr()) {
+        console.error(`recordPlayerConnected failed: ${recordResult.error}`);
         socket.emit("error", { message: "Failed to join game" });
         return;
       }
-      if (rec.value.allConnected) {
-        const gameStart: GameStartPayload = { matchId, timestamp: new Date().toISOString() };
-        const roomA = getTeamRoom(teamId);
+      if (recordResult.value.allConnected) {
+        const gameStartPayload: GameStartPayload = { matchId, timestamp: new Date().toISOString() };
         // 相方チームのIDはmatchから得られるが、ここではブロードキャストで両チームへ送るため、全体へemit
         // チーム別にemitする場合はmatchを再取得して両チームroomへ送信
-        io.emit(SOCKET_EVENTS.GAME_START, gameStart);
+        io.emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
       }
     } catch (error) {
       console.error(`Error on JOIN_GAME:`, error);

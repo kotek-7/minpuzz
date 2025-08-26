@@ -49,15 +49,15 @@ describe('model/matching/matching.joinQueue', () => {
     expect((await startMatching(redis, bId)).isOk()).toBe(true);
 
     // A joins first (older in queue)
-    const resA = await joinQueue(redis, aId);
-    expect(resA.isOk()).toBe(true);
-    if (resA.isOk()) expect(resA.value.type).toBe('waiting');
+    const resultA = await joinQueue(redis, aId);
+    expect(resultA.isOk()).toBe(true);
+    if (resultA.isOk()) expect(resultA.value.type).toBe('waiting');
 
     // B joins next -> should match with A
-    const resB = await joinQueue(redis, bId);
-    expect(resB.isOk()).toBe(true);
-    if (resB.isOk()) {
-      const v = resB.value;
+    const resultB = await joinQueue(redis, bId);
+    expect(resultB.isOk()).toBe(true);
+    if (resultB.isOk()) {
+      const v = resultB.value;
       expect(v.type).toBe('found');
       if (v.type === 'found') {
         expect(typeof v.matchId).toBe('string');

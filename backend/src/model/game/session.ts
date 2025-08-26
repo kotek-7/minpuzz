@@ -19,19 +19,19 @@ export async function recordPlayerConnected(
   userId: string,
 ): Promise<Result<{ allConnected: boolean; counts: { teamA: number; teamB: number } }, string>> {
   // 1) マッチの検証
-  const raw = await redis.get(redisKeys.match(matchId));
-  if (raw.isErr()) return err(raw.error);
-  if (!raw.value) return err("match not found");
-  let match: MatchRecord;
+  const matchRaw = await redis.get(redisKeys.match(matchId));
+  if (matchRaw.isErr()) return err(matchRaw.error);
+  if (!matchRaw.value) return err("match not found");
+  let matchRecord: MatchRecord;
   try {
-    match = JSON.parse(raw.value) as MatchRecord;
+    matchRecord = JSON.parse(matchRaw.value) as MatchRecord;
   } catch {
     return err("invalid match data");
   }
 
-  if (match.status !== "PREPARING") return err("match is not in preparing state");
-  const isTeamA = match.teamA.teamId === teamId;
-  const isTeamB = match.teamB.teamId === teamId;
+  if (matchRecord.status !== "PREPARING") return err("match is not in preparing state");
+  const isTeamA = matchRecord.teamA.teamId === teamId;
+  const isTeamB = matchRecord.teamB.teamId === teamId;
   if (!isTeamA && !isTeamB) return err("team not part of match");
 
   // 任意検証: チームのメンバーであること
@@ -45,42 +45,41 @@ export async function recordPlayerConnected(
   if (addRes.isErr()) return err(addRes.error);
 
   // 3) カウント集計
-  const aMembers = await redis.smembers(redisKeys.matchTeamConnections(matchId, match.teamA.teamId));
-  if (aMembers.isErr()) return err(aMembers.error);
-  const bMembers = await redis.smembers(redisKeys.matchTeamConnections(matchId, match.teamB.teamId));
-  if (bMembers.isErr()) return err(bMembers.error);
-  const counts = { teamA: aMembers.value.length, teamB: bMembers.value.length };
+  const teamAConnections = await redis.smembers(redisKeys.matchTeamConnections(matchId, matchRecord.teamA.teamId));
+  if (teamAConnections.isErr()) return err(teamAConnections.error);
+  const teamBConnections = await redis.smembers(redisKeys.matchTeamConnections(matchId, matchRecord.teamB.teamId));
+  if (teamBConnections.isErr()) return err(teamBConnections.error);
+  const counts = { teamA: teamAConnections.value.length, teamB: teamBConnections.value.length };
 
-  const expectedA = match.teamA.memberCount;
-  const expectedB = match.teamB.memberCount;
+  const expectedA = matchRecord.teamA.memberCount;
+  const expectedB = matchRecord.teamB.memberCount;
   const allConnected = counts.teamA >= expectedA && counts.teamB >= expectedB;
 
   if (!allConnected) return ok({ allConnected, counts });
 
   // 4) 達成: matchをREADY、チームをIN_GAMEへ
-  const updated: MatchRecord = { ...match, status: "READY" };
-  const saveMatch = await redis.set(redisKeys.match(matchId), JSON.stringify(updated), RedisTTL.MATCH_PREPARING);
+  const updatedMatchRecord: MatchRecord = { ...matchRecord, status: "READY" };
+  const saveMatch = await redis.set(redisKeys.match(matchId), JSON.stringify(updatedMatchRecord), RedisTTL.MATCH_PREPARING);
   if (saveMatch.isErr() || !saveMatch.value) return err("failed to update match to READY");
 
   // チーム状態更新
-  const setTeam = async (tid: string): Promise<Result<void, string>> => {
-    const tRaw = await redis.get(redisKeys.team(tid));
-    if (tRaw.isErr()) return err(tRaw.error);
-    if (!tRaw.value) return err("team not found");
-    let t;
-    try { t = JSON.parse(tRaw.value); } catch { return err("invalid team data"); }
-    t.status = TeamStatus.IN_GAME;
-    t.updatedAt = new Date().toISOString();
-    const stored = await redis.set(redisKeys.team(tid), JSON.stringify(t), RedisTTL.TEAM_SESSION);
+  const updateTeamToInGame = async (targetTeamId: string): Promise<Result<void, string>> => {
+    const teamRaw = await redis.get(redisKeys.team(targetTeamId));
+    if (teamRaw.isErr()) return err(teamRaw.error);
+    if (!teamRaw.value) return err("team not found");
+    let team;
+    try { team = JSON.parse(teamRaw.value); } catch { return err("invalid team data"); }
+    team.status = TeamStatus.IN_GAME;
+    team.updatedAt = new Date().toISOString();
+    const stored = await redis.set(redisKeys.team(targetTeamId), JSON.stringify(team), RedisTTL.TEAM_SESSION);
     if (stored.isErr() || !stored.value) return err("failed to update team IN_GAME");
     return ok(void 0);
   };
 
-  const aSet = await setTeam(match.teamA.teamId);
-  if (aSet.isErr()) return err(aSet.error);
-  const bSet = await setTeam(match.teamB.teamId);
-  if (bSet.isErr()) return err(bSet.error);
+  const updateTeamAResult = await updateTeamToInGame(matchRecord.teamA.teamId);
+  if (updateTeamAResult.isErr()) return err(updateTeamAResult.error);
+  const updateTeamBResult = await updateTeamToInGame(matchRecord.teamB.teamId);
+  if (updateTeamBResult.isErr()) return err(updateTeamBResult.error);
 
   return ok({ allConnected: true, counts });
 }
-

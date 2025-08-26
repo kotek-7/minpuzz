@@ -20,14 +20,14 @@ describe('model/matching/matching.joinQueue concurrency', () => {
     expect((await startMatching(redis, aId)).isOk()).toBe(true);
     expect((await startMatching(redis, bId)).isOk()).toBe(true);
 
-    const [ra, rb] = await Promise.all([
+    const [resultA, resultB] = await Promise.all([
       joinQueue(redis, aId),
       joinQueue(redis, bId),
     ]);
 
-    expect(ra.isOk()).toBe(true);
-    expect(rb.isOk()).toBe(true);
-    const types = [ra.isOk() ? ra.value.type : 'err', rb.isOk() ? rb.value.type : 'err'];
+    expect(resultA.isOk()).toBe(true);
+    expect(resultB.isOk()).toBe(true);
+    const types = [resultA.isOk() ? resultA.value.type : 'err', resultB.isOk() ? resultB.value.type : 'err'];
     const foundCount = types.filter(t => t === 'found').length;
     const waitingCount = types.filter(t => t === 'waiting').length;
     expect(foundCount).toBe(1);
@@ -75,4 +75,3 @@ describe('model/matching/matching.joinQueue concurrency', () => {
     }
   });
 });
-
