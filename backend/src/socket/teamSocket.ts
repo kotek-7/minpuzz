@@ -160,8 +160,8 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
 
       // 切断時の必須クリーンアップ：Redisからマッピング削除でメモリリーク防止
       const removeResult = await removeSocketUserMapping(redis, socket.id);
-      if (removeUserFromAllTeamsResult.isErr()) {
-        console.error(`Failed to remove socket mapping on disconnect: ${removeUserFromAllTeamsResult.error}`);
+      if (removeResult.isErr()) {
+        console.error(`Failed to remove socket mapping on disconnect: ${removeResult.error}`);
       }
     } catch (error) {
       console.error(`Error handling disconnect:`, error);
