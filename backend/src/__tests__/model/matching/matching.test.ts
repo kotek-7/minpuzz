@@ -1,6 +1,7 @@
 import { MockRedisClient } from '../../setup/MockRedisClient.js';
 import { joinQueue } from '../../../model/matching/matching.js';
-import { createTeam, startMatching } from '../../../model/team/team.js';
+import { createTeam, startMatching, getTeam } from '../../../model/team/team.js';
+import { TeamStatus } from '../../../model/team/types.js';
 import { redisKeys } from '../../../repository/redisKeys.js';
 
 describe('model/matching/matching.joinQueue', () => {
@@ -62,6 +63,26 @@ describe('model/matching/matching.joinQueue', () => {
         expect(typeof v.matchId).toBe('string');
         expect(v.partner.teamId).toBe(aId);
         expect(v.self.teamId).toBe(bId);
+
+        // Teams should move to PREPARING
+        const ta = await getTeam(redis, aId);
+        const tb = await getTeam(redis, bId);
+        expect(ta.isOk()).toBe(true);
+        expect(tb.isOk()).toBe(true);
+        if (ta.isOk() && tb.isOk()) {
+          expect(ta.value?.status).toBe(TeamStatus.PREPARING);
+          expect(tb.value?.status).toBe(TeamStatus.PREPARING);
+        }
+
+        // Match record should exist
+        const raw = await redis.get(redisKeys.match(v.matchId));
+        expect(raw.isOk()).toBe(true);
+        if (raw.isOk()) {
+          const parsed = raw.value ? JSON.parse(raw.value) : null;
+          expect(parsed).not.toBeNull();
+          expect(parsed.id).toBe(v.matchId);
+          expect(parsed.status).toBe('PREPARING');
+        }
       }
     }
 

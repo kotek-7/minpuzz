@@ -21,6 +21,8 @@ export enum TeamStatus {
   READY = "READY",
   // 対戦相手検索中（他チームからの参加拒否）
   MATCHING = "MATCHING",
+  // ゲーム準備中（対戦確定後、接続待ちなどの準備段階）
+  PREPARING = "PREPARING",
   // ゲーム進行中（メンバー変更不可）
   IN_GAME = "IN_GAME",
   // ゲーム終了（TTL後自動削除対象）

@@ -1,7 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import { err, ok, Result } from "neverthrow";
 import type { RedisClient } from "../../repository/redisClient.js";
-import { addTeamToMatchingQueue, getMatchingQueueTeams, removeTeamFromMatchingQueue, RedisTTL } from "../team/team.js";
+import { addTeamToMatchingQueue, getMatchingQueueTeams, removeTeamFromMatchingQueue, RedisTTL, getTeam } from "../team/team.js";
+import { TeamStatus } from "../team/types.js";
+import type { Match } from "./types.js";
 import type { QueueJoinResult, MatchingRules } from "./types.js";
 import { planPartner } from "./logic.js";
 import { redisKeys } from "../../repository/redisKeys.js";
@@ -152,7 +154,50 @@ export async function joinQueue(
     await removeTeamFromMatchingQueue(redis, self.teamId);
     await removeTeamFromMatchingQueue(redis, partner.teamId);
 
+    // 両チームをPREPARINGへ更新
+    const selfTeamResult = await getTeam(redis, self.teamId);
+    if (selfTeamResult.isErr() || !selfTeamResult.value) return err("failed to load self team for preparing");
+    const partnerTeamResult = await getTeam(redis, partner.teamId);
+    if (partnerTeamResult.isErr() || !partnerTeamResult.value) return err("failed to load partner team for preparing");
+
+    selfTeamResult.value.status = TeamStatus.PREPARING;
+    selfTeamResult.value.updatedAt = new Date().toISOString();
+    partnerTeamResult.value.status = TeamStatus.PREPARING;
+    partnerTeamResult.value.updatedAt = new Date().toISOString();
+
+    const setSelf = await redis.set(
+      redisKeys.team(self.teamId),
+      JSON.stringify(selfTeamResult.value),
+      RedisTTL.TEAM_SESSION,
+    );
+    if (setSelf.isErr() || !setSelf.value) return err("failed to update self team to PREPARING");
+    const setPartner = await redis.set(
+      redisKeys.team(partner.teamId),
+      JSON.stringify(partnerTeamResult.value),
+      RedisTTL.TEAM_SESSION,
+    );
+    if (setPartner.isErr() || !setPartner.value) return err("failed to update partner team to PREPARING");
+
+    // マッチ情報を保存（準備フェーズ）
     const matchId = uuidv4();
+    const match: Match = {
+      id: matchId,
+      teamA: { teamId: self.teamId, memberCount: self.memberCount },
+      teamB: { teamId: partner.teamId, memberCount: partner.memberCount },
+      status: 1 as any, // placeholder to avoid enum import issues
+      createdAt: new Date().toISOString(),
+    } as Match;
+    // 明示的にJSON構築しつつ、型安全は最小限に（実データは単純）
+    const matchJson = JSON.stringify({
+      id: match.id,
+      teamA: match.teamA,
+      teamB: match.teamB,
+      status: "PREPARING",
+      createdAt: match.createdAt,
+    });
+    const saveMatch = await redis.set(redisKeys.match(matchId), matchJson, RedisTTL.MATCH_PREPARING);
+    if (saveMatch.isErr() || !saveMatch.value) return err("failed to persist match preparing state");
+
     return ok({ type: "found", matchId, self, partner });
   } finally {
     if (claimKey) {

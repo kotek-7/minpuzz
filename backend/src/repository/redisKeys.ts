@@ -36,6 +36,9 @@ export const redisKeys = {
   matchingQueue: () => RedisSetKey(`matching:queue`),
   matchingTeam: (teamId: string) => RedisStringKey(`matching:team:${teamId}`),
 
+  // マッチ情報
+  match: (matchId: string) => RedisStringKey(`match:${matchId}`),
+
   // マッチングの軽量ロック/クレーム管理
   matchTeamLocks: () => RedisSetKey(`match:locks:teams`),
   matchTeamLock: (teamId: string) => RedisStringKey(`match:lock:team:${teamId}`),

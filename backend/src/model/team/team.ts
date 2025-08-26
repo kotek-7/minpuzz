@@ -15,6 +15,8 @@ export const RedisTTL = {
   TEAM_NUMBER: 3600 * 4,
   // マッチング待機タイムアウト（10分）
   MATCHING_QUEUE: 600,
+  // マッチ確定後の準備フェーズ想定（15分）
+  MATCH_PREPARING: 900,
 } as const;
 
 // Utility functions
