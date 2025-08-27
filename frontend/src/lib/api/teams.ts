@@ -1,10 +1,5 @@
 import { isMockMode, request } from "./http";
-
-// Zod を利用する場合は import してください（導入済み前提）。
-// 依存が未導入でも型のみで動くようにoptional扱いにします。
-// 実行時parseはスキップしても致命的ではないため、型アサーションにフォールバック。
-let z: any = null;
-try { z = require("zod"); } catch {}
+import { z } from "zod";
 
 export type Difficulty = "easy" | "normal" | "hard" | "extra";
 
@@ -16,11 +11,9 @@ export type ResolveTeamNumberResponse = { teamId: string; teamNumber: string };
 export type AddTeamMemberInput = { teamId: string; userId: string; nickname: string };
 export type AddTeamMemberResponse = { ok: true };
 
-const CreateTeamRespSchema = z
-  ? z.object({ teamId: z.string().min(1), teamNumber: z.string().min(1) })
-  : null;
+const CreateTeamRespSchema = z.object({ teamId: z.string().min(1), teamNumber: z.string().min(1) });
 const ResolveRespSchema = CreateTeamRespSchema;
-const AddMemberRespSchema = z ? z.object({ ok: z.literal(true) }) : null;
+const AddMemberRespSchema = z.object({ ok: z.literal(true) });
 
 // モック実装
 function randomId(prefix: string) {
@@ -52,7 +45,7 @@ export async function createTeam(input: CreateTeamInput): Promise<CreateTeamResp
     return await createTeamMock(input);
   }
   const res = await request<CreateTeamResponse>(`/teams`, { method: "POST", body: input });
-  return CreateTeamRespSchema ? CreateTeamRespSchema.parse(res) : (res as CreateTeamResponse);
+  return CreateTeamRespSchema.parse(res);
 }
 
 export async function resolveTeamNumber(teamNumber: string): Promise<ResolveTeamNumberResponse> {
@@ -60,7 +53,7 @@ export async function resolveTeamNumber(teamNumber: string): Promise<ResolveTeam
     return await resolveTeamNumberMock(teamNumber);
   }
   const res = await request<ResolveTeamNumberResponse>(`/teams/${encodeURIComponent(teamNumber)}`, { method: "POST" });
-  return ResolveRespSchema ? ResolveRespSchema.parse(res) : (res as ResolveTeamNumberResponse);
+  return ResolveRespSchema.parse(res);
 }
 
 export async function addTeamMember(input: AddTeamMemberInput): Promise<AddTeamMemberResponse> {
@@ -71,6 +64,5 @@ export async function addTeamMember(input: AddTeamMemberInput): Promise<AddTeamM
     method: "POST",
     body: input,
   });
-  return AddMemberRespSchema ? AddMemberRespSchema.parse(res) : (res as AddTeamMemberResponse);
+  return AddMemberRespSchema.parse(res);
 }
-
