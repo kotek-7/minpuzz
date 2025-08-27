@@ -71,45 +71,167 @@
 ---
 
 ## M2 ストア/ロック層の抽象化（確定）
-目的: 盤面/スコア/ロック/タイマーを一貫管理する GameStore 抽象を定義し、InMemory/Redis 実装の差し替えを可能にする。
+目的: 盤面/スコア/ロック/タイマーを一貫管理する GameStore 抽象を定義し、InMemory/Redis 実装の差し替えを可能にする。M3以降（ピースエンジン）の土台。
 
-- U2-1: GameStore IF定義
-  - 概要: セッション/マッチ/ピース/スコア/ロック/タイマーの入出力境界を確立
-  - API（例）:
+- U2-1: ドメイン型/Zodスキーマ定義
+  - 概要: Piece/Score/Timer/Lockの最小型とZodスキーマを定義し共有
+  - I/F: `Piece { id, x, y, placed, row?, col?, holder? }`, `Score { placedByTeam: Record<teamId, number> }`, `Timer { startedAt, durationMs }`
+  - 受入基準: Zod parse成功、型がサーバ/クライアント共有可能
+  - 実装状況: [x] done
+  - 参照: `backend/src/model/game/types.ts`, `backend/src/model/game/schemas.ts`
+
+- U2-2: GameStore IF定義（契約）
+  - 概要: セッション/ピース/ロック/スコア/タイマーの境界I/F
+  - I/F（例）:
     - match: `getMatch(id)`, `setMatch(id, record, ttlSec?)`
-    - team: `getTeam(id)`, `setTeam(id, record, ttlSec?)`
     - connections: `addConnection(matchId, teamId, userId)`, `listConnections(matchId, teamId)`
     - pieces: `getPiece(matchId, pieceId)`, `setPiece(matchId, piece)`, `listPieces(matchId)`
     - piece-lock: `acquirePieceLock(matchId, pieceId, userId, ttlSec)`, `releasePieceLock(matchId, pieceId, userId)`
     - score: `getScore(matchId)`, `incrTeamPlaced(matchId, teamId)`, `setPlaced(matchId, teamId, n)`
     - timer: `getTimer(matchId)`, `setTimer(matchId, { startedAt, durationMs })`
-  - 受入基準: `neverthrow` Result による失敗表現、型共有（TS）
-  - 進捗: [ ] pending
+  - 受入基準: `neverthrow`のResult戻り、strict TS通過
+  - 実装状況: [x] done
+  - 参照: `backend/src/repository/gameStore.ts`
 
-- U2-2: InMemory 実装 + 単体テスト
-  - 概要: M3以降のロジック検証用にメモリ版を実装
-  - 受入基準: 競合テストで排他/非排他挙動を再現可能
-  - 進捗: [ ] pending
+- U2-3: InMemory 実装（骨組み）
+  - 概要: Map/Setベースの最小実装（無ロック環境での排他保証はロジック側で検証）
+  - 受入基準: すべてのメソッドが存在し単体テスト可能
+  - 実装状況: [x] done
+  - 参照: `backend/src/repository/gameStore.memory.ts`
 
-- U2-3: Redis 実装（キー設計の具体化）
-  - 再利用キー: `match:*`, `match:*:team:*:connected`, `team:*`, `team:*:members`
-  - 追加キー案:
-    - ピース: `match:{id}:pieces`（Hash: `pieceId` -> JSON）
-    - ロック: `match:{id}:piece:{pieceId}:lock`（String, TTL）+ `match:{id}:locks:pieces`（Set, heal用）
-    - スコア: `match:{id}:score`（Hash: `teamId` -> placed数）
-    - タイマー: `match:{id}:timer`（String JSON: `{startedAt, durationMs}`）
-  - 受入基準: TTLとheal方針（Set+String）がマッチング実装と整合
-  - 進捗: [ ] pending
+- U2-4: InMemory: connections 機能＋テスト
+  - 概要: `addConnection`/`listConnections`
+  - テスト: 同一ユーザー重複登録の無害化、接続数カウントの正確性
+  - 受入基準: ユニットテスト緑
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/memory.connections.test.ts`
 
-- U2-4: Publisher IF（送出抽象）
-  - 概要: `toTeam(teamId)`, `toPublic(matchId)`, `toUser(socketId)` のFacade
-  - 受入基準: Noop/Spy 実装でサービス層を単体テスト可能
-  - 進捗: [ ] pending
+- U2-5: InMemory: pieces CRUD＋一覧＋テスト
+  - 概要: `setPiece`/`getPiece`/`listPieces`
+  - テスト: 未登録→undefined、上書き保存、一覧の安定性
+  - 受入基準: ユニットテスト緑
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/memory.pieces.test.ts`
 
-### M2 受け入れチェックリスト
-- [ ] GameStore IFの契約が固まっている
-- [ ] InMemory/Redis 実装の単体テストがグリーン
-- [ ] 既存M1コードと `redisKeys` の整合を維持
+- U2-6: InMemory: ロック（acquire/release/TTL模擬）＋並行テスト
+  - 概要: `acquirePieceLock`（保持者設定・TTL模擬）/`releasePieceLock`
+  - テスト: `Promise.all`同時grabで勝者が一意、非保持者releaseで拒否、TTL経過で再取得可
+  - 受入基準: 競合テスト安定（>100回で一意性保持）
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/memory.locks.test.ts`
+
+- U2-7: InMemory: スコア＋テスト
+  - 概要: `setPlaced`/`incrTeamPlaced`/`getScore`
+  - テスト: 増分の正確性、未初期化時のデフォルト0、並行インクリメントでの整合
+  - 受入基準: ユニットテスト緑
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/memory.score.test.ts`
+
+- U2-8: InMemory: タイマー＋テスト
+  - 概要: `setTimer`/`getTimer`
+  - テスト: startedAt/durationMsの保持、上書き時の整合
+  - 受入基準: ユニットテスト緑
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/memory.timer.test.ts`
+
+- U2-9: Redis キー設計の確定（仕様化）
+  - 概要: 既存キーと整合を取りつつ各機能のキー確定
+  - キー:
+    - pieces: `match:{id}:pieces`（Hash: `pieceId` -> JSON）
+    - locks: `match:{id}:piece:{pieceId}:lock`（String, TTL）+ `match:{id}:locks:pieces`（Set）
+    - score: `match:{id}:score`（Hash: `teamId` -> placed数）
+    - timer: `match:{id}:timer`（String JSON: `{startedAt,durationMs}`）
+    - connections: `match:{id}:team:{teamId}:connected`（Set）
+  - 受入基準: docs更新、既存 `redisKeys` と矛盾なし
+  - 実装状況: [x] done
+  - 参照: `backend/src/repository/redisKeys.ts`
+
+- U2-10: Redis 実装: connections＋テスト
+  - 概要: SADD/SMEMBERS実装
+  - テスト: `MockRedisClient`で往復、重複SADDの無害化
+  - 受入基準: ユニットテスト緑
+  - 実装状況: [x] done
+  - 参照: `backend/src/repository/gameStore.redis.ts`, `backend/src/__tests__/store/redis.connections.test.ts`
+
+- U2-11: Redis 実装: pieces（Hash JSON）＋テスト
+  - 概要: HSET/HGET/HVALS
+  - テスト: JSON直列化/逆直列化の整合、一覧の件数・内容一致
+  - 受入基準: ユニットテスト緑
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/redis.pieces.test.ts`
+
+- U2-12: Redis 実装: ロック（SET NX PX）＋テスト
+  - 概要: `SET key value NX PX ttl`でロック取得、DELで解放（保持者一致チェック）
+  - テスト: 同時grabで一意性、保持者不一致release拒否、TTL後再取得可
+  - 受入基準: 競合テスト安定
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/redis.locks.test.ts`
+
+- U2-13: Redis 実装: スコア（Hash）＋テスト
+  - 概要: HINCRBY/HSET/HGETALL
+  - テスト: 原子的加算、未初期化→0
+  - 受入基準: ユニットテスト緑
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/redis.score_timer.test.ts`
+
+- U2-14: Redis 実装: タイマー（String JSON）＋テスト
+  - 概要: SET/GETで `{startedAt,durationMs}` を保存
+  - テスト: 再読込の整合、上書き
+  - 受入基準: ユニットテスト緑
+  - 実装状況: [x] done
+  - 参照: `backend/src/__tests__/store/redis.score_timer.test.ts`
+
+- U2-15: Publisher IF（送出抽象）＋Spy/Noop
+  - 概要: `toTeam(teamId)`/`toPublic(matchId)`/`toUser(socketId)` のFacade
+  - テスト: Spyで呼び出し回数/ペイロード検証、Noopで単体テスト容易化
+  - 受入基準: サービス層をPublisherに依存させても既存M1が動作継続（導入はM3で実施）
+  - 実装状況: [x] done
+  - 参照予定: `backend/src/socket/publisher.ts`, `backend/src/__tests__/socket/publisher.test.ts`
+
+- U2-16: 既存コードとの整合・段階的適用準備
+  - 概要: 既存M1コードを壊さず徐々にGameStoreに差し替えられるよう準備
+  - 方針: Feature flag/DIポイントを用意（M2では未適用、M3で差し替え）
+  - テスト: 既存シナリオテストがグリーンのまま維持（smoke）
+  - 受入: M1のテストがすべて通過、ビルド/型チェックOK
+  - 実装状況: [x] done
+  - 参照予定: `backend/src/model/game/session.ts`（適用検討のみ）
+  - 参照: `backend/src/config/di.ts`, `backend/src/__tests__/config/di.test.ts`
+
+- U2-17: エラーハンドリングポリシーとResultマッピング
+  - 概要: `Result<Ok,Err>`のErr文字列ユニオン（'notFound'|'conflict'|'invalid'|'io' など）と、HTTP/Socketエラー変換の指針
+  - テスト: 単体でErr分岐が網羅されること（Zodエラー→'invalid'等）
+  - 受入基準: サービス層で `isErr()` 分岐が一貫して扱える
+  - 実装状況: [x] done
+  - 参照: `backend/src/shared/errors.ts`, `backend/src/__tests__/shared/errors.test.ts`
+
+- U2-18: 型共有・スキーマ単一ソース化
+  - 概要: Zodスキーマを単一ソースにし、型を`infer`で共有（必要なら型のみフロントへエクスポート）
+  - テスト: `GameInitPayload`等と矛盾がない（型レベルで検出）
+  - 受入基準: ビルド時に循環依存なし、クライアント型と一致
+  - 実装状況: [x] done（`events.ts` の `GameInitPayload` を `model/game/init.ts` に一本化）
+
+- U2-19: ドキュメント・キー設計更新
+  - 概要: 本章と `backend/src/repository/redisKeys.ts` のキー追記、必要に応じ `docs/in-game/events-game.md` を調整
+  - 受入基準: 追加キーが既存キーと衝突しない、命名規則が一貫
+  - 実装状況: [x] done
+
+- U2-20: CI統合・テストマトリクス
+  - 概要: InMemory/Redisテストのタグ分離（RedisはMockでOK）。並行テストはシリアライズ/リトライ設定
+  - 受入基準: `pnpm test` 全緑、競合テストのフレーク率が許容範囲（<1%）
+  - 実装状況: [ ] pending
+
+- U2-21: 負荷/並行性ミニベンチ（任意）
+  - 概要: InMemory実装でgrab競合・move擬似頻度（15–30Hz）を短時間ベンチ
+  - 受入基準: 目視で遅延/一意性に問題なし（M3の実装目安）
+  - 実装状況: [ ] pending
+
+### M2 受け入れチェックリスト（最終）
+- [x] GameStore IFとZodスキーマが確定（型/契約がコンパイル通過）
+- [x] InMemory実装＋ユニットテストが緑（connections/pieces/locks/score/timer）
+- [x] Redis実装のキー設計が文書化・整合（`redisKeys` 追記）
+- [x] Redis実装ユニットテストが緑（MockでOK）
+- [x] Publisher IF＋Spy/Noopで送出抽象のテストが可能
+- [x] 既存M1シナリオがグリーン（非導入で回帰なし）
 
 ---
 

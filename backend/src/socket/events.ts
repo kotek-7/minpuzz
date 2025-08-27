@@ -81,12 +81,4 @@ export interface GameStartPayload {
   timestamp: string;
 }
 
-export interface GameInitPayload {
-  matchId: string;
-  teamId: string;
-  userId: string;
-  board: { rows: number; cols: number };
-  pieces: Array<{ id: string; x: number; y: number; placed: boolean; row?: number; col?: number }>;
-  startedAt: string | null;
-  durationMs: number | null;
-}
+export type { GameInitPayload } from "../model/game/init.js";
