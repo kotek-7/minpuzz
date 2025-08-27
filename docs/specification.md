@@ -72,6 +72,7 @@ project-root/
 │       └── config.toml  # Supabase設定
 └── docs/
     ├── specification.md # 本仕様書
+    ├── implementation-plan.md # 実装計画（マイルストーン/U単位）
     ├── architecture.mmd # アーキテクチャ図
     ├── sequence-home-to-team.mmd # シーケンス図
     └── typescript/      # TypeScript開発ガイド
@@ -118,6 +119,10 @@ project-root/
 ### リアルタイム通信
 - WebSocketによるリアルタイム状態同期
 - チーム状態、ゲーム進行、マッチング状況の即座反映
+
+### マッチングポリシー
+- 優先: メンバー数が同じチーム同士を優先的にマッチング
+- 例外: 同数が見つからない場合は人数差ありでも許容（FIFOの先着順）
 
 ### 状態管理
 - **Redis**: 一時的なゲーム状態、セッション管理（現在はMock実装）

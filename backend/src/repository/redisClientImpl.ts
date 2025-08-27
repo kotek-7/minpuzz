@@ -66,6 +66,18 @@ async function set(connection: RedisConnection, key: RedisStringKey, value: stri
   }
 }
 
+// Atomic: SET key value NX PX ttlMs
+async function setNxPx(connection: RedisConnection, key: RedisStringKey, value: string, ttlMs: number): Promise<Result<boolean, string>> {
+  try {
+    // redis v5 client: options object supports NX/PX flags
+    const result = await (connection.client as any).set(key.key, value, { NX: true, PX: ttlMs });
+    // when NX fails (already exists) redis returns null
+    return ok(result === "OK");
+  } catch (error) {
+    return err(`Redis SET NX PX error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 async function get(connection: RedisConnection, key: RedisStringKey): Promise<Result<string | null, string>> {
   try {
     const result = await connection.client.get(key.key);
@@ -224,6 +236,9 @@ function createRedisClientImpl(connection: RedisConnection): RedisClient {
   return {
     async set(key: RedisStringKey, value: string, ttl?: number) {
       return set(connection, key, value, ttl);
+    },
+    async setNxPx(key: RedisStringKey, value: string, ttlMs: number) {
+      return setNxPx(connection, key, value, ttlMs);
     },
     async get(key: RedisStringKey) {
       return get(connection, key);

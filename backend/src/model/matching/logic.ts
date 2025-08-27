@@ -77,7 +77,19 @@ export const selectPartnerFIFO = (
   candidates: MatchingTeamInfo[],
   rules: MatchingRules
 ): MatchingTeamInfo | null => {
+  // 優先: メンバー数が同じ相手（要件: なるべく同じ人数）
+  const equalSize: MatchingTeamInfo[] = [];
+  const others: MatchingTeamInfo[] = [];
   for (const c of candidates) {
+    if (c.teamId === self.teamId) continue;
+    if (c.memberCount === self.memberCount) equalSize.push(c); else others.push(c);
+  }
+
+  for (const c of equalSize) {
+    if (canMatch(self, c, rules)) return c;
+  }
+  // 例外: 同数不在なら人数差ありでも許容（FIFO順）
+  for (const c of others) {
     if (canMatch(self, c, rules)) return c;
   }
   return null;

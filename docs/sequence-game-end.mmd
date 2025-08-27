@@ -1,0 +1,38 @@
+%%{init: {'theme':'default', 'themeVariables': {'primaryColor': '#4f46e5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#3730a3', 'lineColor': '#374151', 'secondaryColor': '#e5e7eb', 'tertiaryColor': '#f3f4f6'}}}%%
+
+sequenceDiagram
+    participant U1 as ユーザー1
+    participant F1 as フロントエンド1
+    participant B as バックエンド
+    participant R as Redis
+    participant F2 as フロントエンド2
+    participant U2 as ユーザー2
+
+    Note over F1,F2: 勝敗条件：全ピース配置 or タイムアップ（2分）
+
+    alt 全ピースが配置される
+        B->>R: スコア更新（placed カウント確定）
+        B->>R: match:{id}:status = COMPLETED（冪等）
+        Note over B: 勝者は placed が多いチーム（同点は null）
+        B->>F1: Socket to public: game-end {reason:'completed', winnerTeamId, scores, finishedAt}
+        B->>F2: Socket to public: game-end {reason:'completed', winnerTeamId, scores, finishedAt}
+    else タイムアップ到達
+        B->>R: startedAt + durationMs を監視（remaining<=0）
+        B->>R: 両チームの placed を比較
+        B->>R: match:{id}:status = COMPLETED（冪等）
+        alt 片方が多い
+            B->>F1: Socket to public: game-end {reason:'timeout', winnerTeamId, scores, finishedAt}
+            B->>F2: Socket to public: game-end {reason:'timeout', winnerTeamId, scores, finishedAt}
+        else 同点
+            B->>F1: Socket to public: game-end {reason:'timeout', winnerTeamId:null, scores, finishedAt}
+            B->>F2: Socket to public: game-end {reason:'timeout', winnerTeamId:null, scores, finishedAt}
+        end
+    end
+
+    par クライアントUI
+        F1->>U1: リザルト画面表示（スコア・勝者・相手はシルエット）
+    and
+        F2->>U2: リザルト画面表示
+    end
+
+    Note over F1,F2: 任意の遷移：再戦、ロビーへ戻る

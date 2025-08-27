@@ -1,0 +1,15 @@
+%%{init: {'theme':'default', 'themeVariables': {'primaryColor': '#4f46e5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#3730a3', 'lineColor': '#374151', 'secondaryColor': '#e5e7eb', 'tertiaryColor': '#f3f4f6'}}}%%
+
+%% タイマー同期（低頻度・ドリフト補正）
+sequenceDiagram
+    participant B as バックエンド
+    participant F1 as フロントエンド1
+    participant F2 as フロントエンド2
+
+    Note over B: game-start 時に {startedAt, durationMs} を保存しスケジューラ開始
+    loop 5秒毎（または重要イベント時）
+        B->>F1: Socket to public: timer-sync {nowIso, startedAt, durationMs, remainingMs}
+        B->>F2: Socket to public: timer-sync {nowIso, startedAt, durationMs, remainingMs}
+        F1->>F1: ローカル残り時間表示を補正
+        F2->>F2: ローカル残り時間表示を補正
+    end
