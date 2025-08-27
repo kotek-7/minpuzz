@@ -31,6 +31,8 @@ export const SOCKET_EVENTS = {
   // 進捗/終了（public）
   PROGRESS_UPDATE: 'progress-update',
   GAME_END: 'game-end',
+  // タイマー（M5）
+  TIMER_SYNC: 'timer-sync',
 } as const;
 
 export type SocketEvents = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
@@ -187,4 +189,11 @@ export type GameEndPayload = {
   winnerTeamId: string | null;
   scores: Record<string, number>;
   finishedAt: string;
+};
+
+export type TimerSyncPayload = {
+  nowIso: string;
+  startedAt: string | null;
+  durationMs: number | null;
+  remainingMs: number;
 };

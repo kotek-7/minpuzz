@@ -115,3 +115,12 @@ export const PiecePlaceDeniedPayloadSchema = z.object({
   reason: z.enum(['notFound', 'placed', 'notHolder', 'invalidCell']),
 });
 export type PiecePlaceDeniedPayload = z.infer<typeof PiecePlaceDeniedPayloadSchema>;
+
+// M5: timer-sync payload schema
+export const TimerSyncPayloadSchema = z.object({
+  nowIso: z.string(),
+  startedAt: z.string().nullable(),
+  durationMs: z.number().int().positive().nullable(),
+  remainingMs: z.number().int().nonnegative(),
+});
+export type TimerSyncPayload = z.infer<typeof TimerSyncPayloadSchema>;

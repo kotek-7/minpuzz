@@ -18,11 +18,12 @@ import * as TeamModel from "../model/team/team.js";
 import * as Matching from "../model/matching/matching.js";
 import * as GameSession from "../model/game/session.js";
 import { redisKeys } from "../repository/redisKeys.js";
-import { buildInitPayload } from "../model/game/init.js";
+import { buildInitPayload, buildInitPayloadWithTimer } from "../model/game/init.js";
 import * as PieceService from "../model/game/pieceService.js";
 import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSchema, PiecePlacePayloadSchema } from "../model/game/schemas.js";
 import { createGameStore } from "../config/di.js";
 import { createThrottler } from "./middleware/rateLimit.js";
+import { createTimerScheduler } from "./middleware/timerScheduler.js";
 import { incrementTeamPlacedAndGetScore } from "../model/game/progress.js";
 import { completeMatchIfNeeded } from "../model/game/endService.js";
 import { seedPiecesIfEmpty } from "../model/game/seed.js";
@@ -30,6 +31,7 @@ import { seedPiecesIfEmpty } from "../model/game/seed.js";
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   const store = createGameStore(redis);
   const moveThrottler = createThrottler(40);
+  const timerScheduler = createTimerScheduler(io as any, store);
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
     try {
       const { teamId, userId } = payload;
@@ -250,9 +252,13 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
   socket.on(SOCKET_EVENTS.JOIN_GAME, async (payload: JoinGamePayload) => {
     try {
       const { matchId, teamId, userId } = payload;
-      // 参加直後にダミーの game-init を参加者へ返す
+      // 参加直後に game-init を参加者へ返す（M5: timerを反映）
       try {
-        const initPayload = buildInitPayload({ matchId, teamId, userId });
+        let initPayload = buildInitPayload({ matchId, teamId, userId });
+        const timerRes = await store.getTimer(matchId);
+        if (timerRes.isOk()) {
+          initPayload = buildInitPayloadWithTimer({ matchId, teamId, userId }, timerRes.value);
+        }
         socket.emit(SOCKET_EVENTS.GAME_INIT, initPayload);
       } catch (e) {
         console.error("Failed to emit game-init:", e);
@@ -276,7 +282,16 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
         return;
       }
       if (recordResult.value.allConnected) {
-        const gameStartPayload: GameStartPayload = { matchId, timestamp: new Date().toISOString() };
+        const nowIso = new Date().toISOString();
+        const gameStartPayload: GameStartPayload = { matchId, timestamp: nowIso };
+        // M5: タイマー設定（デフォルト 120s）
+        const DEFAULT_DURATION_MS = 120_000;
+        const setTimerRes = await store.setTimer(matchId, { startedAt: nowIso, durationMs: DEFAULT_DURATION_MS });
+        if (setTimerRes.isErr()) {
+          console.error("Failed to set timer on GAME_START:", setTimerRes.error);
+        }
+        // スケジューラ起動（定期 timer-sync）
+        try { timerScheduler.start(matchId); } catch {}
         // 両チームのroomに限定してブロードキャスト
         const matchRaw = await redis.get(redisKeys.match(matchId));
         if (matchRaw.isOk() && matchRaw.value) {
@@ -392,6 +407,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
             scores: scoreNow.isOk() ? scoreNow.value.placedByTeam : {},
             finishedAt: new Date().toISOString(),
           });
+          try { timerScheduler.stop(p.matchId); } catch {}
         }
       } else {
         // 明示的に place-denied を返す

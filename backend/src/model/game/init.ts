@@ -36,3 +36,21 @@ export function buildInitPayload(params: { matchId: string; teamId: string; user
   GameInitPayloadSchema.parse(payload);
   return payload;
 }
+
+// M5: タイマー情報を反映した初期化データ
+export function buildInitPayloadWithTimer(
+  params: { matchId: string; teamId: string; userId: string },
+  timer: { startedAt: string; durationMs: number } | null
+): GameInitPayload {
+  const payload: GameInitPayload = {
+    matchId: params.matchId,
+    teamId: params.teamId,
+    userId: params.userId,
+    board: { rows: 6, cols: 6 },
+    pieces: [],
+    startedAt: timer ? timer.startedAt : null,
+    durationMs: timer ? timer.durationMs : null,
+  };
+  GameInitPayloadSchema.parse(payload);
+  return payload;
+}
