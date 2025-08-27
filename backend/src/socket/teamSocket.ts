@@ -20,12 +20,13 @@ import * as GameSession from "../model/game/session.js";
 import { redisKeys } from "../repository/redisKeys.js";
 import { buildInitPayload } from "../model/game/init.js";
 import * as PieceService from "../model/game/pieceService.js";
-import { SOCKET_EVENTS } from "./events.js";
 import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSchema } from "../model/game/schemas.js";
 import { createGameStore } from "../config/di.js";
+import { createThrottler } from "./middleware/rateLimit.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   const store = createGameStore(redis);
+  const moveThrottler = createThrottler(40);
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
     try {
       const { teamId, userId } = payload;
@@ -308,6 +309,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
   socket.on(SOCKET_EVENTS.PIECE_MOVE, async (payload) => {
     try {
       const p = PieceMovePayloadSchema.parse(payload);
+      if (!moveThrottler.shouldAllow(socket.id)) return;
       const res = await PieceService.move(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, x: p.x, y: p.y, ts: p.ts });
       if (res.isOk()) {
         const moved = { pieceId: p.pieceId, x: p.x, y: p.y, byUserId: p.userId, ts: p.ts };
