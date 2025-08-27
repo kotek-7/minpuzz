@@ -32,9 +32,13 @@
   - 用途: 設置確定（スナップ/正解判定）
   - 例: `{ pieceId, row, col, byUserId }`
 
+- `piece-place-denied` (to requester)
+  - 用途: 設置拒否（非ホルダー/既配置/不正セル/スナップ外）
+  - 例: `{ pieceId, reason:'notFound'|'placed'|'notHolder'|'invalidCell' }`
+
 - `progress-update` (to public)
   - 用途: スコア更新通知（相手側は数のみ表示）
-  - 例: `{ teamA:{placed}, teamB:{placed} }`
+  - 例: `{ placedByTeam: { [teamId]: number } }`
 
 - `timer-sync` (to public, 5s程度/重要イベント時)
   - 用途: 残り時間表示のドリフト補正
@@ -91,4 +95,3 @@
 - Zodで型/範囲を検証（IDs、座標、行列の境界）
 - スロットリング/デバウンス: `piece-move`/`cursor-move` は 15–30Hz、量子化（1px 等）推奨
 - ルーム粒度: 自チームには詳細、相手には進捗のみで帯域最適化
-

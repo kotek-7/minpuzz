@@ -40,10 +40,10 @@ sequenceDiagram
         B->>F1: piece-placed {pieceId,row,col,byUserId}
         B->>F2: piece-placed {pieceId,row,col,byUserId}
         Note over B: 進捗は public に最小限を通知
-        B->>F1: progress-update {teamPlaced}
-        B->>F2: progress-update {teamPlaced}
+        B->>F1: progress-update {placedByTeam}
+        B->>F2: progress-update {placedByTeam}
     else 不正/範囲外
-        B->>F1: piece-released {pieceId, x, y}
+        B->>F1: piece-place-denied {pieceId, reason}
     end
 
     Note over U1,U2: 次: docs/sequence-game-end.mmd（ゲーム終了フロー）
