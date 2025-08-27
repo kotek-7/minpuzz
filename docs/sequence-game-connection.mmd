@@ -23,11 +23,17 @@ sequenceDiagram
         U1->>F1: ゲーム接続開始
         F1->>B: Socket emit: join-game（matchId, teamId, userId）
         B-->>F1: game-init（board, pieces, startedAt?, duration?）
+        Note over B,F1: 即座に本人へ state-sync も送出（最新全量）
+        B-->>F1: state-sync（board, pieces, score, timer?, matchStatus）
+        Note over B: publicルームへ参加（progress/game-end/timer-sync用）
+        B->>B: room:match:{id}:public に join
         B->>R: SADD match:{matchId}:team:{teamId}:connected userId
     and
         U2->>F2: ゲーム接続開始
         F2->>B: Socket emit: join-game（matchId, teamId, userId）
         B-->>F2: game-init（board, pieces, startedAt?, duration?）
+        B-->>F2: state-sync（board, pieces, score, timer?, matchStatus）
+        B->>B: room:match:{id}:public に join
         B->>R: SADD match:{matchId}:team:{teamId}:connected userId
     end
 
@@ -35,9 +41,11 @@ sequenceDiagram
     alt 全プレイヤーが接続完了
         R-->>B: 達成
         B->>R: match を READY に更新、チーム両方を IN_GAME に更新
-        Note over B: ゲーム開始通知（チームルームに限定）
+        Note over B: ゲーム開始通知（チームルームに限定）＋タイマー開始
         B->>F1: Socket to teamA room: game-start（matchId）
         B->>F2: Socket to teamB room: game-start（matchId）
+        B->>R: match:{id}:timer = {startedAt, durationMs}
+        Note over B: timer-sync を public に5秒周期で送出開始
     else まだ接続待ち
         Note over U1,U2: 接続待ち表示を継続
     end

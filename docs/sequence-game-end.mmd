@@ -12,21 +12,20 @@ sequenceDiagram
 
     alt 全ピースが配置される
         B->>R: スコア更新（placed カウント確定）
-        B->>R: match:{id}:status = FINISHED
-        Note over B: 勝者は完成側チーム
-        B->>F1: game-end {reason:'completed', winnerTeamId, scores, finishedAt}
-        B->>F2: game-end {reason:'completed', winnerTeamId, scores, finishedAt}
+        B->>R: match:{id}:status = COMPLETED（冪等）
+        Note over B: 勝者は placed が多いチーム（同点は null）
+        B->>F1: Socket to public: game-end {reason:'completed', winnerTeamId, scores, finishedAt}
+        B->>F2: Socket to public: game-end {reason:'completed', winnerTeamId, scores, finishedAt}
     else タイムアップ到達
-        B->>R: startedAt + duration を監視
-        R-->>B: 残り0
+        B->>R: startedAt + durationMs を監視（remaining<=0）
         B->>R: 両チームの placed を比較
-        B->>R: match:{id}:status = FINISHED
+        B->>R: match:{id}:status = COMPLETED（冪等）
         alt 片方が多い
-            B->>F1: game-end {reason:'timeout', winnerTeamId, scores, finishedAt}
-            B->>F2: game-end {reason:'timeout', winnerTeamId, scores, finishedAt}
+            B->>F1: Socket to public: game-end {reason:'timeout', winnerTeamId, scores, finishedAt}
+            B->>F2: Socket to public: game-end {reason:'timeout', winnerTeamId, scores, finishedAt}
         else 同点
-            B->>F1: game-end {reason:'timeout', winnerTeamId:null, scores, finishedAt}
-            B->>F2: game-end {reason:'timeout', winnerTeamId:null, scores, finishedAt}
+            B->>F1: Socket to public: game-end {reason:'timeout', winnerTeamId:null, scores, finishedAt}
+            B->>F2: Socket to public: game-end {reason:'timeout', winnerTeamId:null, scores, finishedAt}
         end
     end
 
@@ -37,4 +36,3 @@ sequenceDiagram
     end
 
     Note over F1,F2: 任意の遷移：再戦、ロビーへ戻る
-

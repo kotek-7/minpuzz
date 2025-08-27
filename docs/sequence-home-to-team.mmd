@@ -25,6 +25,7 @@ sequenceDiagram
         Note over F,B: WebSocket接続でリアルタイム更新
         F->>B: Socket接続 (team:{teamId})
         B->>R: チームメンバー情報を更新
+        B->>F: Socket to team: member-joined / team-updated
         
         loop メンバー参加待ち
             Note over U: 他のメンバーの参加を待機
@@ -58,7 +59,7 @@ sequenceDiagram
             Note over F,B: WebSocket接続でリアルタイム更新
             F->>B: Socket接続 (team:{teamId})
             B->>R: チームメンバー情報を更新
-            B->>F: Socket broadcast: memberJoined<br/>(既存メンバーに通知)
+            B->>F: Socket to team: member-joined / team-updated
             
         else チーム番号が無効 or チーム満員
             B-->>F: エラー: チームが見つからない or チーム満員

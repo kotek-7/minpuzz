@@ -13,23 +13,22 @@ sequenceDiagram
 
     U1->>F1: ピースを掴む(pieceId)
     F1->>B: Socket emit: piece-grab
-    B->>R: SETNX lock:piece:{id} = user1 (TTL)
+    B->>R: SET key lock:piece:{id} NX PX ttl （保持者=U1）
     alt ロック成功
         R-->>B: OK
-        Note over B: チームルームにブロードキャスト
-        B->>F1: piece-grabbed {pieceId, byUserId}
-        B->>F2: piece-grabbed {pieceId, byUserId}
+        Note over B: 自チームのroomにのみ通知
+        B->>F1: Socket to team room: piece-grabbed {pieceId, byUserId}
     else 失敗（他ユーザが保持/配置済）
         R-->>B: NG
-        B->>F1: piece-grab-denied {pieceId, reason}
+        B-->>F1: piece-grab-denied {pieceId, reason}
     end
 
     loop ドラッグ（送信側スロットリング 15–30Hz）
         U1->>F1: ピース移動(x,y)
         F1->>B: Socket emit: piece-move
+        Note over B: 送信はソケットID単位で40msスロットリング
         B->>R: 位置更新（holder一致を確認）
-        B->>F1: piece-moved {pieceId, x, y, byUserId}
-        B->>F2: piece-moved {pieceId, x, y, byUserId}
+        B->>F1: Socket to team room: piece-moved {pieceId, x, y, byUserId}
     end
 
     U1->>F1: 設置操作(候補 row,col)
@@ -37,13 +36,11 @@ sequenceDiagram
     B->>R: 検証（holder, 正解, スナップ域）
     alt 正解で設置
         B->>R: 盤面確定・ロック解除・スコア+1
-        B->>F1: piece-placed {pieceId,row,col,byUserId}
-        B->>F2: piece-placed {pieceId,row,col,byUserId}
+        B->>F1: Socket to team room: piece-placed {pieceId,row,col,byUserId}
         Note over B: 進捗は public に最小限を通知
-        B->>F1: progress-update {placedByTeam}
-        B->>F2: progress-update {placedByTeam}
+        B->>F1: Socket to public: progress-update {placedByTeam}
     else 不正/範囲外
-        B->>F1: piece-place-denied {pieceId, reason}
+        B-->>F1: piece-place-denied {pieceId, reason}
     end
 
     Note over U1,U2: 次: docs/sequence-game-end.mmd（ゲーム終了フロー）

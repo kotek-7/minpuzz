@@ -4,7 +4,7 @@
 
 ## マイルストーン概要
 - M1: セッション/ルーム最小実装（join-game登録、game-init返却、全員接続でgame-start）
-- M2: ストア/ロック層の抽象化（GameStore IF、InMemory/Redis実装、キー設計確立）
+- M2: ストア/ロック層の抽象化（GameStore IF、Redis実装、キー設計確立）
 - M3: ピースエンジン（grab/move/releaseの検証とブロードキャスト）
 - M4: 配置/スコア/進捗（place→確定→progress-update、全配置でgame-end）
 - M5: タイムキーパー（timer-sync、timeoutでgame-end）
@@ -71,7 +71,11 @@
 ---
 
 ## M2 ストア/ロック層の抽象化（確定）
-目的: 盤面/スコア/ロック/タイマーを一貫管理する GameStore 抽象を定義し、InMemory/Redis 実装の差し替えを可能にする。M3以降（ピースエンジン）の土台。
+目的: 盤面/スコア/ロック/タイマーを一貫管理する GameStore 抽象を定義し、Redis 実装を土台として提供する（方針変更により InMemory 実装は採用しない）。M3以降（ピースエンジン）の土台。
+
+方針（2025-08 反映）
+- ストア実装は Redis のみとする。
+- InMemory 実装（およびそのテスト項目）は削除。ユニットテストは MockRedisClient により Redis 実装前提で実施する。
 
 - U2-1: ドメイン型/Zodスキーマ定義
   - 概要: Piece/Score/Timer/Lockの最小型とZodスキーマを定義し共有
@@ -94,45 +98,45 @@
   - 参照: `backend/src/repository/gameStore.ts`
 
 - U2-3: InMemory 実装（骨組み）
-  - 概要: Map/Setベースの最小実装（無ロック環境での排他保証はロジック側で検証）
-  - 受入基準: すべてのメソッドが存在し単体テスト可能
-  - 実装状況: [x] done
-  - 参照: `backend/src/repository/gameStore.memory.ts`
+  - 概要: 方針変更により削除（Redis のみを採用）
+  - 受入基準: なし（当該Uは廃止）
+  - 実装状況: [x] removed (policy change)
+  - 参照: なし
 
 - U2-4: InMemory: connections 機能＋テスト
-  - 概要: `addConnection`/`listConnections`
-  - テスト: 同一ユーザー重複登録の無害化、接続数カウントの正確性
-  - 受入基準: ユニットテスト緑
-  - 実装状況: [x] done
-  - 参照: `backend/src/__tests__/store/memory.connections.test.ts`
+  - 概要: 方針変更により削除（Redis のみを採用）
+  - テスト: なし（当該Uは廃止）
+  - 受入基準: なし（当該Uは廃止）
+  - 実装状況: [x] removed (policy change)
+  - 参照: なし
 
 - U2-5: InMemory: pieces CRUD＋一覧＋テスト
-  - 概要: `setPiece`/`getPiece`/`listPieces`
-  - テスト: 未登録→undefined、上書き保存、一覧の安定性
-  - 受入基準: ユニットテスト緑
-  - 実装状況: [x] done
-  - 参照: `backend/src/__tests__/store/memory.pieces.test.ts`
+  - 概要: 方針変更により削除（Redis のみを採用）
+  - テスト: なし（当該Uは廃止）
+  - 受入基準: なし（当該Uは廃止）
+  - 実装状況: [x] removed (policy change)
+  - 参照: なし
 
 - U2-6: InMemory: ロック（acquire/release/TTL模擬）＋並行テスト
-  - 概要: `acquirePieceLock`（保持者設定・TTL模擬）/`releasePieceLock`
-  - テスト: `Promise.all`同時grabで勝者が一意、非保持者releaseで拒否、TTL経過で再取得可
-  - 受入基準: 競合テスト安定（>100回で一意性保持）
-  - 実装状況: [x] done
-  - 参照: `backend/src/__tests__/store/memory.locks.test.ts`
+  - 概要: 方針変更により削除（Redis のみを採用）
+  - テスト: なし（当該Uは廃止）
+  - 受入基準: なし（当該Uは廃止）
+  - 実装状況: [x] removed (policy change)
+  - 参照: なし
 
 - U2-7: InMemory: スコア＋テスト
-  - 概要: `setPlaced`/`incrTeamPlaced`/`getScore`
-  - テスト: 増分の正確性、未初期化時のデフォルト0、並行インクリメントでの整合
-  - 受入基準: ユニットテスト緑
-  - 実装状況: [x] done
-  - 参照: `backend/src/__tests__/store/memory.score.test.ts`
+  - 概要: 方針変更により削除（Redis のみを採用）
+  - テスト: なし（当該Uは廃止）
+  - 受入基準: なし（当該Uは廃止）
+  - 実装状況: [x] removed (policy change)
+  - 参照: なし
 
 - U2-8: InMemory: タイマー＋テスト
-  - 概要: `setTimer`/`getTimer`
-  - テスト: startedAt/durationMsの保持、上書き時の整合
-  - 受入基準: ユニットテスト緑
-  - 実装状況: [x] done
-  - 参照: `backend/src/__tests__/store/memory.timer.test.ts`
+  - 概要: 方針変更により削除（Redis のみを採用）
+  - テスト: なし（当該Uは廃止）
+  - 受入基準: なし（当該Uは廃止）
+  - 実装状況: [x] removed (policy change)
+  - 参照: なし
 
 - U2-9: Redis キー設計の確定（仕様化）
   - 概要: 既存キーと整合を取りつつ各機能のキー確定
@@ -216,160 +220,421 @@
   - 実装状況: [x] done
 
 - U2-20: CI統合・テストマトリクス
-  - 概要: InMemory/Redisテストのタグ分離（RedisはMockでOK）。並行テストはシリアライズ/リトライ設定
+  - 概要: Redis(Mock) テストの安定実行。競合テストはシリアライズ/リトライ設定
   - 受入基準: `pnpm test` 全緑、競合テストのフレーク率が許容範囲（<1%）
   - 実装状況: [ ] pending
 
 - U2-21: 負荷/並行性ミニベンチ（任意）
-  - 概要: InMemory実装でgrab競合・move擬似頻度（15–30Hz）を短時間ベンチ
+  - 概要: MockRedis/Redis 前提で grab 競合・move 擬似頻度（15–30Hz）を短時間ベンチ
   - 受入基準: 目視で遅延/一意性に問題なし（M3の実装目安）
   - 実装状況: [ ] pending
 
 ### M2 受け入れチェックリスト（最終）
 - [x] GameStore IFとZodスキーマが確定（型/契約がコンパイル通過）
-- [x] InMemory実装＋ユニットテストが緑（connections/pieces/locks/score/timer）
 - [x] Redis実装のキー設計が文書化・整合（`redisKeys` 追記）
-- [x] Redis実装ユニットテストが緑（MockでOK）
+- [x] Redis実装ユニットテストが緑（MockRedisClientでOK）
 - [x] Publisher IF＋Spy/Noopで送出抽象のテストが可能
 - [x] 既存M1シナリオがグリーン（非導入で回帰なし）
+- 注記: InMemory実装は採用しない（方針: Redisのみ）。
 
 ---
 
 ## M3 ピースエンジン（grab/move/release）
-目的: サーバ権威でピース保持・移動・解放を管理し、チーム内同期を実現する。
+目的: サーバ権威でピースの保持（ロック）・移動・解放を管理し、チーム内同期を実現する。
 
-- U3-1: ドメイン/型の定義
-  - Piece: `{ id, x, y, placed, row?, col?, holder?: userId }`
-  - バリデーション: ZodでID/座標/行列境界
-  - 受入基準: `docs/in-game/events-game.md` 準拠のpayload
-  - 進捗: [ ] pending
+- U3-1: イベント型/スキーマ（grab/move/release）
+  - 概要: `piece-grab`/`piece-move`/`piece-release` のPayload型とZodスキーマを定義・共有
+  - 受入基準: スキーマparse成功、型はサーバ/フロント共有
+  - 実装状況: [x] done
+  - 参照: `backend/src/model/game/schemas.ts`, `backend/src/socket/events.ts`, `backend/src/__tests__/model/game/piece.events.schema.test.ts`
 
-- U3-2: 掴み（piece-grab）
-  - ロック: `SETNX match:{id}:piece:{pid}:lock = userId (TTL)` + heal用Set
-  - 成功: `piece-grabbed` を team に送出／失敗: `piece-grab-denied`
-  - 受入基準: 同時grab競合で一意に勝者が決まる（conflict図）
-  - 進捗: [ ] pending
+- U3-2: ガード/ユーティリティ（保持者検証・状態取得）
+  - 概要: ホルダー一致検証、ピース取得・更新の純粋関数群
+  - 受入基準: 未保持/未登録/配置済などのガード条件が単体テストで網羅
+  - 実装状況: [x] done
+  - 参照: `backend/src/model/game/pieceGuards.ts`
 
-- U3-3: 移動（piece-move）
-  - 条件: holderのみ受理。軽量スロットリング（受信側）
-  - 更新: 位置保存 + `piece-moved` を team に送出
-  - 受入基準: 継続移動で整合、非ホルダーmove拒否
-  - 進捗: [ ] pending
+- U3-3: 掴み（piece-grab）サービス
+  - 概要: `GameStore.acquirePieceLock`でロック獲得→`piece-grabbed`送出、失敗は`piece-grab-denied`
+  - 受入基準: 同時grab競合で勝者一意、配置済/未登録はdeny
+  - 実装状況: [x] done
+  - 参照: `backend/src/model/game/pieceService.ts`, `backend/src/__tests__/model/game/piece.service.test.ts`
 
-- U3-4: 解放（piece-release）
-  - 処理: 最終位置保存、必要に応じロック解除
-  - 受入基準: 解放直後に他ユーザーがgrab可能
-  - 進捗: [ ] pending
+- U3-4: 移動（piece-move）サービス
+  - 概要: ホルダーのみ受理、位置保存、`piece-moved`をチームへ送出（サーバは軽量ガード）
+  - 受入基準: 非ホルダー拒否、連続moveで最新位置が一貫
+  - 実装状況: [x] done
+  - 参照: `backend/src/model/game/pieceService.ts`, `backend/src/__tests__/model/game/piece.service.test.ts`
 
-- U3-5: テスト
-  - 単体: grab競合、非ホルダーmove拒否、解放→即grab可
-  - 負荷: 15–30Hz move想定で遅延・不整合なし
-  - 進捗: [ ] pending
+- U3-5: 解放（piece-release）サービス
+  - 概要: 最終位置保存、ロック解除（未配置前提）、`piece-released`送出
+  - 受入基準: 解放直後に他ユーザーがgrab可能、非ホルダーreleaseは拒否
+  - 実装状況: [x] done
+  - 参照: `backend/src/model/game/pieceService.ts`, `backend/src/__tests__/model/game/piece.service.test.ts`
+
+- U3-6: Socketゲートウェイ配線
+  - 概要: `piece-grab`/`piece-move`/`piece-release` の受け口追加、Zod検証→サービス呼び出し→Publisher送出
+  - 受入基準: SpyPublisherでイベント送出回数/ペイロード検証、バリデーションエラー時の応答
+  - 実装状況: [x] done
+  - 参照: `backend/src/socket/teamSocket.ts`
+
+- U3-7: 競合/異常系シナリオテスト
+  - 概要: InMemoryStore＋SpyPublisherで、同時grab/非ホルダーmove/解放→再grab のシナリオを通す
+  - 受入基準: 期待イベントシーケンスと件数が一致、例外や重複送出なし
+  - 実装状況: [x] done（イベントはサービス層の結果で検証）
+  - 参照: `backend/src/__tests__/scenario/in-game.pieces.scenario.test.ts`
+
+- U3-8: 軽量スロットリング/ガード（最小）
+  - 概要: サーバ側でmove頻度の基本ガード（例: ソケットIDごとの直近tsで粗く抑制）
+  - 受入基準: しきい値超の連打で一部ドロップ（件数が上限近辺に収束）
+  - 実装状況: [x] done
+  - 参照: `backend/src/socket/middleware/rateLimit.ts`, `backend/src/__tests__/socket/middleware/rateLimit.test.ts`, `backend/src/socket/teamSocket.ts`
 
 ### M3 受け入れチェックリスト
-- [ ] piece-grabの相互排他が保証
-- [ ] 非ホルダー操作が拒否される
-- [ ] moveイベントが滑らかに同期
+- [x] piece-grabの相互排他が保証
+- [x] 非ホルダー操作が拒否される
+- [x] moveイベントが仕様どおりに同期（過剰送出は抑制）
+  - 参照: `backend/src/__tests__/model/game/piece.service.test.ts`, `backend/src/__tests__/scenario/in-game.pieces.scenario.test.ts`, `backend/src/socket/middleware/rateLimit.ts`
 
 ---
 
 ## M4 配置/スコア/進捗
 目的: 正解配置の検証・確定・進捗公開を行い、全配置で終了をトリガーする。
 
-- U4-1: 配置検証（piece-place）
-  - 条件: holder一致・未配置・正解セル・スナップ域内
-  - 成功: `placed=true`, `row/col` 確定、ロック解除、`piece-placed` を team へ
-  - 失敗: `piece-released` を返し復元
-  - 受入基準: 境界条件（端/誤差）をテストで網羅
-  - 進捗: [ ] pending
+### 実装目標（全体像）
+- サーバ権威の配置確定: `piece-place` を受け、保持者・未配置・正解セル・スナップ許容誤差を検証して確定。
+- 進捗とスコアの即時反映: 配置成功でチームの placed を加算し、public に最小情報の `progress-update` を送出。
+- 完了判定と終了通知: 全ピース配置で一度だけ `game-end {reason:'completed'}` を送出し、冪等に終了状態へ遷移。
+- 安定性と冪等性: 重複 place や非ホルダー操作を安全に拒否／無視し、重複通知や整合性崩壊を防止。
 
-- U4-2: スコア更新/公開
-  - 更新: `score[teamId].placed++`
-  - 公開: `progress-update` を public に送出（相手は数のみ）
-  - 受入基準: 自/相手の可視性が仕様通り
-  - 進捗: [ ] pending
+実現要件（達成条件）
+- 検証要件: holder 一致、未配置、正解(row,col)、スナップ誤差内をZod＋純粋関数で判定できる。
+- 成功時の状態遷移: `placed=true`、`row/col` 確定、holder解除、ロック解放、score++ が一貫して行われる。
+- 送出要件: 成功時は teamへ `piece-placed`、publicへ `progress-update`。失敗時は requesterへ `piece-place-denied {reason}`。完了時は一度だけ `game-end`。
+- 併用要件: M3ロックと整合（同時placeはロックで抑止）。再試行・重複placeは冪等に無害。
+- 型/契約: `piece-place` 系イベント型/スキーマを定義・共有し、Zod検証を通過。
+- テスト: 単体（バリデータ境界/誤差/誤セル・保持者/既配置拒否・score加算）とシナリオ（成功→進捗→全配置で終了）がグリーン。
+- 帯域最適化: progress は成功時のみ・public最小情報。過剰ブロードキャスト無し。
 
-- U4-3: 完了判定
-  - 条件: 全ピース配置で `game-end {reason:'completed'}`
-  - 受入基準: 重複送出なし（idempotent）
-  - 進捗: [ ] pending
+- U4-0: イベント/スキーマ定義（piece-place）
+  - 目的: `piece-place` 入力のZodスキーマとイベント定数を追加
+  - 入力: `{ matchId, teamId, userId, pieceId, row, col, x, y }`
+  - 受入基準: スキーマparse成功、型推論がTSで共有可能
+  - 対象: `backend/src/model/game/schemas.ts`, `backend/src/socket/events.ts`
+  - テスト: `backend/src/__tests__/model/game/piece.events.schema.test.ts`
+  - 進捗: [x] done
+  - 参照: `backend/src/model/game/schemas.ts`, `backend/src/socket/events.ts`
+
+- U4-1: 配置ガード（純粋関数）
+  - 目的: holder一致・未配置・正解セル・スナップ誤差内の検証
+  - 入出力: ピース状態/候補(row,col,x,y)/許容誤差 → OK/NG理由タグ
+  - 受入基準: 誤差境界・不正セル・非ホルダー・既配置の網羅テストが緑
+  - 対象: `backend/src/model/game/pieceGuards.ts`
+  - テスト: `backend/src/__tests__/socket/teamSocket.place.denied.test.ts`, `backend/src/__tests__/scenario/in-game.place.flow.test.ts`
+  - 進捗: [x] done
+  - 参照: `backend/src/model/game/pieceGuards.ts`, `backend/src/model/game/geometry.ts`
+
+- U4-2: 配置サービス（place）
+  - 目的: ガード通過時に `placed=true`/`row,col` 確定/位置確定/ロック解放
+  - 処理: `store.getPiece`→ガード→`store.setPiece`→`store.releasePieceLock`
+  - 受入基準: 成功で確定、失敗で状態不変、非ホルダー/既配置はErr
+  - 対象: `backend/src/model/game/pieceService.ts`（`place()`追加）
+  - テスト: `backend/src/__tests__/scenario/in-game.place.flow.test.ts`, `backend/src/__tests__/socket/teamSocket.place.test.ts`
+  - 進捗: [x] done
+  - 参照: `backend/src/model/game/pieceService.ts#place`
+
+- U4-3: スコア更新＋progress公開
+  - 目的: 成功時に `incrTeamPlaced()` し、publicへ `progress-update` を送出
+  - 処理: `store.incrTeamPlaced`→`store.getScore`→`publisher.toPublic(matchId).emit('progress-update', {...})`
+  - 受入基準: スコア加算が正、publicに1回送出、ペイロードが仕様形
+  - 対象: `backend/src/model/game/pieceService.ts`（place内から呼出）
+  - テスト: `backend/src/__tests__/socket/teamSocket.place.test.ts`
+  - 進捗: [x] done
+  - 参照: `backend/src/model/game/progress.ts`, `backend/src/socket/teamSocket.ts`
+
+- U4-4: 完了判定＋game-end（冪等）
+  - 目的: 全ピース配置で一度だけ `game-end {reason:'completed'}` を送出
+  - 判定: `listPieces()` で全件 `placed` 確認（単純方式）
+  - 冪等化: `MatchRecord.status` を `IN_GAME→COMPLETED` に遷移させ多重送出を防止
+  - 受入基準: 同時place/重複placeでも多重送出なし
+  - 対象: `backend/src/model/game/pieceService.ts` または小さな `endService.ts`
+  - テスト: `backend/src/__tests__/socket/teamSocket.place.test.ts`, `backend/src/__tests__/scenario/in-game.place.flow.test.ts`
+  - 進捗: [x] done
+  - 参照: `backend/src/model/game/endService.ts`, `backend/src/socket/teamSocket.ts`
+
+- U4-5: Socket配線（piece-place）
+  - 目的: `teamSocket` に `PIECE_PLACE` を追加し、Zod検証→サービス呼出→送出
+  - 送出: 成功→`piece-placed {pieceId,row,col,byUserId}`（to team）、失敗→`piece-released` or エラー
+  - 受入基準: Publisherでイベント回数/内容検証
+  - 対象: `backend/src/socket/teamSocket.ts`
+  - テスト: `backend/src/__tests__/socket/teamSocket.place.test.ts`, `backend/src/__tests__/socket/teamSocket.place.denied.test.ts`
+  - 進捗: [x] done
+  - 参照: `backend/src/socket/teamSocket.ts`
+
+- U4-6: シナリオテスト（進捗→完了）
+  - 目的: grab→move→place成功→progress→全配置で `game-end` の一連を検証
+  - 受入基準: イベント順序/回数が期待通り、冪等性OK、重複送出なし
+  - 対象: `backend/src/__tests__/scenario/in-game.place.flow.test.ts`
+  - 進捗: [x] done
+
+- U4-7: publicルーム参加（必要時）
+  - 目的: `JOIN_GAME` 時に `room:match:{id}:public` へ join して publicイベント受信を可能化
+  - 受入基準: `progress-update`/`game-end` を受信できる
+  - 対象: `backend/src/socket/teamSocket.ts`
+  - テスト: 軽量ユニット/手動確認（統合テストはオプション）
+  - 進捗: [x] done
+  - 参照: `backend/src/socket/teamSocket.ts`（`JOIN_GAME`時に `room:match:{id}:public` へjoin）
+
+#### 技術詳細
+- スナップ誤差: `epsilonPx`（例: 8px）をガード引数/定数として管理
+- 終了判定の冪等化: `getMatch`→状態確認→`setMatch`で`COMPLETED`に遷移し多重送出防止
+- ペイロード: `events-game.md`の`piece-placed`/`progress-update`/`game-end`に準拠
+- エラー: neverthrowのErr文字列（'invalid'|'conflict'|'notFound'等）で扱う
+
+#### 対象ファイル
+- 追加/変更: `backend/src/model/game/schemas.ts`, `backend/src/socket/events.ts`, `backend/src/model/game/pieceGuards.ts`, `backend/src/model/game/pieceService.ts`, （任意）`backend/src/model/game/endService.ts`, `backend/src/socket/teamSocket.ts`
+- テスト: `backend/src/__tests__/model/game/piece.events.schema.test.ts`, `backend/src/__tests__/socket/teamSocket.place.denied.test.ts`, `backend/src/__tests__/socket/teamSocket.place.test.ts`, `backend/src/__tests__/scenario/in-game.place.flow.test.ts`
+
+#### 段階的実装順序
+1) U4-0 スキーマ/イベント → 2) U4-1 ガード → 3) U4-2 サービス → 4) U4-3 スコア/進捗 → 5) U4-4 完了判定/終了 → 6) U4-5 配線 → 7) U4-6 シナリオ → 8) U4-7 public参加
+
+#### 品質保証/テスト戦略
+- 単体: ガード境界・サービスの成功/失敗/冪等。SpyPublisherで送出観測
+- シナリオ: 代表フローでイベント順序/回数検証
+- 回帰: 既存M1/M3テストが緑であること
 
 ### M4 受け入れチェックリスト
-- [ ] 正解判定とスナップが安定
-- [ ] progressの公開が最小限で最適
-- [ ] 完了時に確実に終了通知
+- [x] 正解判定とスナップが安定
+- [x] progressの公開が最小限で最適
+- [x] 完了時に確実に終了通知
+  - 参照: `backend/src/__tests__/socket/teamSocket.place.test.ts`, `backend/src/__tests__/socket/teamSocket.place.denied.test.ts`, `backend/src/__tests__/scenario/in-game.place.flow.test.ts`
 
 ---
 
 ## M5 タイムキーパー
-目的: 開始時刻/制限時間をサーバで管理し、timer-syncとタイムアップ終了を提供する。
+目的: 開始時刻/制限時間をサーバで管理し、定期同期（timer-sync）とタイムアップ終了を提供する。途中参加でも正しい残り時間を初期化できる。
 
-- U5-1: 開始/設定
-  - `game-start` 決定時に `{ startedAt, durationMs }` を保存
-  - 受入基準: 途中参加の `game-init` が正しい時間情報を返す
+- U5-0: イベント/スキーマ定義
+  - 概要: `timer-sync` イベントを追加。`set-timer`は用意せずサーバ主導。
+  - I/O: Out `timer-sync { nowIso, startedAt, durationMs, remainingMs }`
+  - 受入基準: Zod parse成功、型共有可能
+  - 対象: `backend/src/model/game/schemas.ts`, `backend/src/socket/events.ts`
+  - テスト: `backend/src/__tests__/model/game/piece.events.schema.test.ts` にtimer系ケース追加
   - 進捗: [ ] pending
 
-- U5-2: 同期
-  - 5秒ごと（または重要イベント時）に `timer-sync` を public に送出
-  - 受入基準: クライアント側表示がドリフト補正される
+- U5-1: GameInit拡充（途中参加者向け）
+  - 概要: `buildInitPayload` で `startedAt`/`durationMs` をストアから読み取り埋め込み
+  - 受入基準: 開始済みなら非null、未開始ならnull
+  - 対象: `backend/src/model/game/init.ts`
+  - テスト: 新規 `backend/src/__tests__/model/game/init.timer.test.ts` または既存シナリオへ追加
   - 進捗: [ ] pending
 
-- U5-3: タイムアップ
-  - 残り0でスコア比較し `game-end {reason:'timeout'}`
-  - 同点は `winnerTeamId:null`
+- U5-2: ゲーム開始でタイマー保存
+  - 概要: `GAME_START` 決定時に `setTimer({ startedAt: nowISO, durationMs })` を保存
+  - 受入基準: `getTimer` 再取得で一致
+  - 対象: `backend/src/socket/teamSocket.ts`
+  - テスト: 既存 `backend/src/__tests__/store/redis.score_timer.test.ts` に加え、ソケット統合の簡易検証
+  - 進捗: [ ] pending
+
+- U5-3: タイマー計算ユーティリティ
+  - 概要: `remainingMs(now, timer)` 純粋関数（負値→0）
+  - 受入基準: 時刻境界の単体テストが緑
+  - 対象: 新規 `backend/src/model/game/timer.ts`
+  - テスト: 新規 `backend/src/__tests__/model/game/timer.test.ts`
+  - 進捗: [ ] pending
+
+- U5-4: 同期送出サービス
+  - 概要: `TimerSyncService.tick(matchId, now)` で1回分の `timer-sync` を送出（store/ioは注入）。`remainingMs` を用いて算出。
+  - 受入基準: Spy IOで送出回数/内容検証可能
+  - 対象: 新規 `backend/src/model/game/timerService.ts`
+  - テスト: 新規 `backend/src/__tests__/model/game/timer.service.test.ts`
+  - 進捗: [ ] pending
+
+- U5-5: スケジューラ（インターバル制御）
+  - 概要: `TimerScheduler.start(matchId)`/`stop(matchId)` を提供。内部で5秒間隔tick。テストでは手動tick可能な抽象を注入。
+  - 受入基準: start重複の冪等性、stop後に送出なし
+  - 対象: 新規 `backend/src/socket/middleware/timerScheduler.ts`
+  - テスト: 新規 `backend/src/__tests__/socket/middleware/timerScheduler.test.ts`
+  - 進捗: [ ] pending
+
+- U5-6: ソケット配線（スケジューラ連携）
+  - 概要: `GAME_START` で `TimerScheduler.start(matchId)`、`GAME_END` で `stop(matchId)`。`JOIN_GAME` はpublic joinのみ。
+  - 受入基準: start→syncが定期送出、endで停止
+  - 対象: `backend/src/socket/teamSocket.ts`
+  - テスト: 新規 `backend/src/__tests__/socket/teamSocket.timer.test.ts`
+  - 進捗: [ ] pending
+
+- U5-7: タイムアップ判定と終了
+  - 概要: `TimerSyncService.tick` で `remainingMs<=0` を検知し `completeMatchIfNeeded` を呼び、`GAME_END {reason:'timeout'}` をpublicへ1回だけ送出（同点はwinner null）。
+  - 受入基準: タイムアップが一度だけ発火、以降送出されない
+  - 対象: `backend/src/model/game/timerService.ts`, `backend/src/socket/teamSocket.ts`
+  - テスト: 新規 `backend/src/__tests__/scenario/in-game.timeout.flow.test.ts`
+  - 進捗: [ ] pending
+
+- U5-8: エラー/回復ポリシー
+  - 概要: `getTimer`未設定/invalidは安全にskip（ログのみ）。`setTimer`失敗時もソケット側でクラッシュしない。
+  - 受入基準: 例外で落ちず、再試行で回復可能
+  - 対象: 関連各所
+  - テスト: サービス単体でErr分岐網羅
   - 進捗: [ ] pending
 
 ### M5 受け入れチェックリスト
-- [ ] timer-syncで視覚上のズレが収束
-- [ ] timeout終了が一貫・重複なし
+- [ ] `GAME_START`時にtimerが保存される
+- [ ] `game-init`に正しいtimer情報が入る
+- [ ] `timer-sync`が定期送出（5秒間隔）される
+- [ ] 途中参加でも残り時間が正しく表示できる
+- [ ] 残り0で一度だけ`GAME_END {reason:'timeout'}`を送出
+- [ ] 終了後はsync送出が停止する
+- [ ] 異常時も落ちずにskip（ログのみ）
 
 ---
 
 ## M6 再接続/同期ずれ対策
-目的: 再接続やネットワーク不安定時に安全に復旧できるようにする。
+目的: 再接続や同期ずれ時に最新状態へ安全に復旧し、切断で孤立したロックを回収してゲーム継続性を確保する。
 
-- U6-1: `request-game-init`/`state-sync`
-  - 最新盤面/スコア/タイマーを再送（差分または全量）
-  - 受入基準: 再同期後に視覚/内部状態の差異がない
-  - 進捗: [ ] pending
+- U6-0: イベント/スキーマ定義
+  - 概要: `request-game-init`（入力）と `state-sync`（出力）イベントのPayload定義
+  - I/O: In `{ matchId, teamId, userId }` / Out `{ board, pieces[], score, timer|null, matchStatus }`
+  - 受入基準: Zod parse成功、型共有可能
+  - 対象: `backend/src/model/game/schemas.ts`, `backend/src/socket/events.ts`
+  - テスト: `backend/src/__tests__/model/game/state.events.schema.test.ts`
+  - 進捗: [x] done
 
-- U6-2: ロック回収
-  - 切断で孤立したholderのロックはTTLで自動解放、必要に応じ早期回収
-  - 受入基準: 放置ロックがゲーム継続を阻害しない
-  - 進捗: [ ] pending
+- U6-1: スナップショット生成（純粋ユースケース）
+  - 概要: `buildStateSnapshot(store, matchId)` → `{ board, pieces, score, timer|null, matchStatus }` を合成
+  - 受入基準: storeの値から矛盾なく合成。タイマー未設定時は `timer:null`
+  - 対象: 新規 `backend/src/model/game/state.ts`
+  - テスト: `backend/src/__tests__/model/game/state.snapshot.test.ts`
+  - 進捗: [x] done
 
-- U6-3: ポジション復元
-  - 直近move/positionを保持し、解放時に復元
-  - 受入基準: ズレ検出時も安全に復元
-  - 進捗: [ ] pending
+- U6-2: リクエスト同期ハンドラ
+  - 概要: `REQUEST_GAME_INIT` を受理し、最新スナップショットをリクエスト元に `STATE_SYNC` で返す
+  - 受入基準: 有効マッチで最新全量を返却。無効時はエラー通知
+  - 対象: `backend/src/socket/teamSocket.ts`
+  - テスト: `backend/src/__tests__/socket/teamSocket.stateSync.test.ts`
+  - 進捗: [x] done
+
+- U6-3: JOIN直後の即時同期（オプション）
+  - 概要: `JOIN_GAME` 直後に `GAME_INIT` の後続として `STATE_SYNC` を本人宛に送出し、ズレを最小化
+  - 受入基準: 既存挙動を壊さず、pieces/score/timer が即時一致
+  - 対象: `backend/src/socket/teamSocket.ts`
+  - テスト: `backend/src/__tests__/socket/teamSocket.stateSync.test.ts`（JOIN直後ケース）
+  - 進捗: [x] done
+
+- U6-4: ロック回収サービス（切断トリガ）
+  - 概要: 切断ユーザーが保持中のピース（holder===userId）を検出し、位置保存→holder解除→`releasePieceLock()` で即時回収
+  - 受入基準: 切断直後に他ユーザーが `grab` 可能になる
+  - 対象: 新規 `backend/src/model/game/lockReclaimService.ts`
+  - テスト: `backend/src/__tests__/model/game/lockReclaim.service.test.ts`
+  - 進捗: [x] done
+
+- U6-5: 切断ハンドラ連携
+  - 概要: `DISCONNECT` 時に U6-4 を呼び出す（既存のチーム離脱処理に追加）
+  - 受入基準: 切断→保持ロックが即座に解放。既存の人数/チーム通知は維持
+  - 対象: `backend/src/socket/teamSocket.ts`
+  - テスト: `backend/src/__tests__/socket/teamSocket.disconnect.reclaim.test.ts`
+  - 進捗: [x] done
+
+- U6-6: 冪等性・安全性
+  - 概要: ロック回収は何度呼んでも安全（状態遷移で保護）。途中エラーでも他件に波及しない
+  - 受入基準: 二重実行・部分失敗でも破綻しない
+  - テスト: サービス単体で二重実行の無害性確認
+  - 進捗: [x] done
+
+- U6-7: 追加考慮（任意）
+  - 概要: TTLベースの定期回収スケジューラの導入検討、`state-sync` の軽量レート制限
+  - 受入基準: 帯域/安定性への悪影響なし
+  - 進捗: [x] 部分完了（`state-sync`レート制限）。TTLスキャンはM7で検討。
 
 ### M6 受け入れチェックリスト
-- [ ] 再接続後の `game-init` で完全復旧
-- [ ] ロックのスタックが自動回復
+- [ ] `request-game-init` に対して最新スナップショットを返却
+- [ ] `JOIN_GAME` 直後に状態が同期（任意実装時）
+- [ ] 切断ユーザーの保持ロックが即時回収される
+- [ ] 回収後に他ユーザーが同ピースを `grab` 可能
+- [ ] 冪等性（重複回収・再同期）で破綻しない
+- [ ] 異常時でも落ちずにスキップ/ログで回復可能
 
 ---
 
 ## M7 運用補助
-目的: 可観測性・保守性・悪用対策を整える。
+目的: 可観測性（メトリクス/ログ）を強化し、管理操作と健全なレート制御で運用性・耐障害性を高める。
 
-- U7-1: メトリクス/ログ
-  - grab/move/place 成否、競合率、遅延などを記録
-  - 受入基準: ダッシュボード/ログで異常検知可能
+- U7-0: メトリクス基盤（IF＋集計）
+  - 概要: `Metrics` IF（counter増分・ゲージ設定）とInMemory実装。集計対象を一元管理。
+  - 計測対象: grab/move/release/place 成否、progress送出、game-start/end、timer-sync送出数、state-sync送出数、rate-limit drop数
+  - 受入基準: Spy実装でイベント呼び出しに応じたカウントが正確に増える
+  - 対象: 新規 `backend/src/shared/metrics.ts`
+  - テスト: `backend/src/__tests__/shared/metrics.test.ts`
   - 進捗: [ ] pending
 
-- U7-2: 管理操作
-  - 管理API: マッチ強制終了、ロック強制解放、state dump
-  - 受入基準: 本番事故時の復旧手順が具体的
+- U7-1: メトリクス送出フック
+  - 概要: 主要イベントの結果確定点に `metrics.inc()` を追加（成功/拒否で差分）
+  - 受入基準: 該当イベントの成功/拒否でカウンタが正しく反映
+  - 対象: `backend/src/socket/teamSocket.ts`, `backend/src/model/game/pieceService.ts`, `backend/src/model/game/timerService.ts` ほか
+  - テスト: `backend/src/__tests__/socket/metrics.integration.test.ts`
   - 進捗: [ ] pending
 
-- U7-3: レート制限
-  - Socket名前空間単位で軽量レート制限（特にmove）
-  - 受入基準: 悪用/スパムで帯域逼迫を抑制
+- U7-2: メトリクスエクスポート
+  - 概要: `GET /admin/metrics` で `{ counters: Record<string, number> }` を返す（JSON）。Prometheus互換は任意。
+  - 受入基準: イベント発火後に期待値が取得できる
+  - 対象: 新規 `backend/src/routes/v1/admin.ts`（`/metrics` 追加）, 既存 `routes/v1/index.ts` にマウント
+  - テスト: `backend/src/__tests__/routes/admin.metrics.test.ts`
+  - 進捗: [ ] pending
+
+- U7-3: 構造化ロギングユーティリティ
+  - 概要: `logger.info({ event, matchId, ... })` 形式の薄いラッパを導入（依存追加なし）
+  - 受入基準: 期待キーが出力に含まれる（formatter単体テスト）
+  - 対象: 新規 `backend/src/shared/logger.ts`、軽微に使用箇所を置換
+  - テスト: `backend/src/__tests__/shared/logger.test.ts`
+  - 進捗: [ ] pending
+
+- U7-4: 管理API（運用操作）
+  - 概要:
+    - `POST /admin/matches/:matchId/end` → `COMPLETED`へ遷移＋`GAME_END{reason:'forfeit'}`送出（冪等）
+    - `POST /admin/matches/:matchId/release-locks` → ピースロック強制回収
+    - `GET /admin/matches/:matchId/state` → スナップショット返却
+  - 認証: ヘッダ `x-admin-token`（`.env ADMIN_TOKEN`）
+  - 受入基準: 各操作が冪等で、無効ID/不正トークンは適切なHTTPコード
+  - 対象: `backend/src/routes/v1/admin.ts`（追加）, `model/game/endService.ts`/`lockReclaimService.ts` 再利用
+  - テスト: `backend/src/__tests__/routes/admin.ops.test.ts`
+  - 進捗: [ ] pending
+
+- U7-5: レート制限（強化）
+  - 概要: 名前空間/イベント別の簡易トークンバケット（ソケットID単位）で帯域保護
+  - 例: `move` 40ms、`state-sync` 500ms、`request-game-init` 500ms（既存）、管理APIも低頻度で制限
+  - 受入基準: 連打で一定割合がドロップし、窓を空けると再度通る
+  - 対象: `socket/middleware/rateLimit.ts` 強化 or 新規 `rateBucket.ts`、`teamSocket.ts` 適用
+  - テスト: `backend/src/__tests__/socket/middleware/rateBucket.test.ts`
+  - 進捗: [ ] pending
+
+- U7-6: 設定値の外部化
+  - 概要: タイマー長・スケジューラ間隔・各レート制限値・ADMIN_TOKEN を `.env` から取得（`env.ts`拡張）
+  - 受入基準: `.env` 未設定時はデフォルト、設定時は反映
+  - 対象: `backend/src/env.ts`、使用箇所（teamSocket/timerScheduler等）
+  - テスト: `backend/src/__tests__/config/env.test.ts`
+  - 進捗: [ ] pending
+
+- U7-7: ヘルスチェック
+  - 概要: `GET /health`（プロセス稼働）/ `GET /ready`（Redis疎通）
+  - 受入基準: RedisモックOKで`/ready` 200、エラー時 503
+  - 対象: `backend/src/routes/index.ts` or 新規 `routes/v1/health.ts`
+  - テスト: `backend/src/__tests__/routes/health.test.ts`
+  - 進捗: [ ] pending
+
+- U7-8: 遅延計測（簡易）
+  - 概要: 代表イベントで処理時間msを測り、閾値超をカウント（例: `latency.grab.gt50ms`）
+  - 受入基準: 疑似遅延でカウンタ増加
+  - 対象: メトリクス＋軽量 `measure()` ユーティリティ
+  - テスト: `backend/src/__tests__/shared/metrics.latency.test.ts`
   - 進捗: [ ] pending
 
 ### M7 受け入れチェックリスト
-- [ ] 主要KPIの可視化
-- [ ] 緊急時の復旧手段が用意されている
+- [ ] 主要イベントのメトリクスが集計され、`/admin/metrics` で確認可能
+- [ ] 管理API（end/release/state）が冪等に動作し、適切にログ/メトリクス記録
+- [ ] レート制限がイベント別に適用され、スパムによる帯域逼迫が抑制
+- [ ] 環境変数による設定が反映され、未設定時は安全なデフォルト
+- [ ] `/health`/`/ready` が正しく稼働状況を示す
+- [ ] 簡易遅延計測で異常時検知の足掛かりが得られる
 
 ---
 
