@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import React from "react";
 
 export const TeamNumberInput = () => {
   const [joinNumber, setJoinNumber] = useState("");

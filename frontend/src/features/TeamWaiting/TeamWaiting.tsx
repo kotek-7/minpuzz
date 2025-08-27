@@ -2,7 +2,7 @@
 
 import React from "react";
 
-export const WaitngStudio = () => {
+export const TeamWaiting = () => {
   const members = ["player1 さん", "player2 さん"];
 
   return (
