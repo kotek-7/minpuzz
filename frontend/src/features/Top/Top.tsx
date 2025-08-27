@@ -1,22 +1,29 @@
 "use client";
 
 import React from "react";
+import { useEffect } from "react";
 import { useState } from "react";
 import { Logo } from "./Logo";
-
+import { useRouter } from "next/navigation";
 
 export const Top = () => {
+  useEffect(() => {
+    if (sessionStorage.getItem("userId") === null) {
+      sessionStorage.setItem("userId", crypto.randomUUID());
+    }
+  }, []);
   const [nickname, setNickname] = useState("");
-
+  const router = useRouter();
   return (
-    <div className="h-screen w-full mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]" style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+    <div
+      className="h-screen w-full mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]"
+      style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
+    >
       <div className="bg-[#e0f8fb] p-2.5 min-h-[650px] text-center">
         <div className="flex justify-center">
           <Logo style={{ width: "340px", height: "auto", marginTop: "70px" }} />
         </div>
-        <p className="text-[18px] mt-5 mb-5 text-black text-center">
-          力を合わせてパズルを完成させよう!
-        </p>
+        <p className="text-[18px] mt-5 mb-5 text-black text-center">力を合わせてパズルを完成させよう!</p>
 
         <div className="flex items-center gap-x-2 max-w-[300px] mx-auto my-[30px]">
           <label htmlFor="nickname" className="font-bold text-[20px] min-w-[60px]">
@@ -32,11 +39,16 @@ export const Top = () => {
           />
         </div>
 
-
         <div className="flex justify-center gap-[20px]">
           <button
-            onClick={() => console.log("チームを作る")}
-            className="flex flex-col items-center min-w-[150px] p-[10px] text-[15px] font-bold rounded-[12px] text-[#4a2c00] bg-[#ffba39] border-2 border-[#8a5a00] shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
+            disabled={!nickname}
+            onClick={() => router.push("/difficulty-selection")}
+            className={`flex flex-col items-center min-w-[150px] p-[10px] text-[15px] font-bold rounded-[12px] border-2 transition-all duration-150
+              ${
+                nickname
+                  ? "text-[#4a2c00] bg-[#ffba39] border-[#8a5a00] shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
+                  : "text-gray-500 bg-gray-300 border-gray-400"
+              }`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -51,8 +63,14 @@ export const Top = () => {
           </button>
 
           <button
-            onClick={() => console.log("チームに参加")}
-            className="flex flex-col items-center min-w-[150px] p-[10px] text-[15px] font-bold rounded-[12px] text-[#4a2c00] bg-[#ffba39] border-2 border-[#8a5a00] shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
+            disabled={!nickname}
+            onClick={() => router.push("/team-number-input")}
+            className={`flex flex-col items-center min-w-[150px] p-[10px] text-[15px] font-bold rounded-[12px] border-2 transition-all duration-150
+              ${
+                nickname
+                  ? "text-[#4a2c00] bg-[#ffba39] border-[#8a5a00] shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
+                  : "text-gray-500 bg-gray-300 border-gray-400"
+              }`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
