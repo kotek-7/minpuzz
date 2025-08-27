@@ -20,9 +20,11 @@ import * as GameSession from "../model/game/session.js";
 import { redisKeys } from "../repository/redisKeys.js";
 import { buildInitPayload } from "../model/game/init.js";
 import * as PieceService from "../model/game/pieceService.js";
-import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSchema } from "../model/game/schemas.js";
+import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSchema, PiecePlacePayloadSchema } from "../model/game/schemas.js";
 import { createGameStore } from "../config/di.js";
 import { createThrottler } from "./middleware/rateLimit.js";
+import { incrementTeamPlacedAndGetScore } from "../model/game/progress.js";
+import { completeMatchIfNeeded } from "../model/game/endService.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   const store = createGameStore(redis);
@@ -254,6 +256,12 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       } catch (e) {
         console.error("Failed to emit game-init:", e);
       }
+      // publicルームにも参加（進捗/終了の受信のため）
+      try {
+        await socket.join(`room:match:${matchId}:public`);
+      } catch (e) {
+        console.error("Failed to join public room:", e);
+      }
       const recordResult = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
       if (recordResult.isErr()) {
         console.error(`recordPlayerConnected failed: ${recordResult.error}`);
@@ -335,6 +343,55 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       }
     } catch (e) {
       socket.emit('error', { message: 'invalid payload for piece-release' });
+    }
+  });
+
+  // M4: piece-place
+  socket.on(SOCKET_EVENTS.PIECE_PLACE, async (payload) => {
+    try {
+      const p = PiecePlacePayloadSchema.parse(payload);
+      const res = await PieceService.place(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, row: p.row, col: p.col, x: p.x, y: p.y });
+      if (res.isOk()) {
+        // 自チームへ配置確定
+        const placed = { pieceId: p.pieceId, row: p.row, col: p.col, byUserId: p.userId };
+        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_PLACED, placed);
+
+        // スコア加算とprogress公開
+        const scoreRes = await incrementTeamPlacedAndGetScore(store, { matchId: p.matchId, teamId: p.teamId });
+        if (scoreRes.isOk()) {
+          io.to(`room:match:${p.matchId}:public`).emit(SOCKET_EVENTS.PROGRESS_UPDATE, { placedByTeam: scoreRes.value.placedByTeam });
+        }
+
+        // 全配置で終了を一度だけ通知
+        const endRes = await completeMatchIfNeeded(store, p.matchId);
+        if (endRes.isOk() && endRes.value.completed) {
+          // winner（最大値）を計算（同点はnull）
+          const scoreNow = await store.getScore(p.matchId);
+          let winnerTeamId: string | null = null;
+          if (scoreNow.isOk()) {
+            const entries = Object.entries(scoreNow.value.placedByTeam);
+            if (entries.length > 0) {
+              entries.sort((a, b) => b[1] - a[1]);
+              if (entries.length >= 2 && entries[0][1] === entries[1][1]) {
+                winnerTeamId = null;
+              } else {
+                winnerTeamId = entries[0][0];
+              }
+            }
+          }
+          io.to(`room:match:${p.matchId}:public`).emit(SOCKET_EVENTS.GAME_END, {
+            reason: 'completed',
+            winnerTeamId,
+            scores: scoreNow.isOk() ? scoreNow.value.placedByTeam : {},
+            finishedAt: new Date().toISOString(),
+          });
+        }
+      } else {
+        // 失敗時は手元復元を促す
+        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_RELEASED, { pieceId: p.pieceId, x: p.x, y: p.y, byUserId: p.userId });
+      }
+    } catch (e) {
+      socket.emit('error', { message: 'invalid payload for piece-place' });
     }
   });
 }

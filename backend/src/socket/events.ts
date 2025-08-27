@@ -23,6 +23,13 @@ export const SOCKET_EVENTS = {
   PIECE_MOVED: 'piece-moved',
   PIECE_RELEASE: 'piece-release',
   PIECE_RELEASED: 'piece-released',
+
+  // ゲーム中（M4 追加）
+  PIECE_PLACE: 'piece-place',
+  PIECE_PLACED: 'piece-placed',
+  // 進捗/終了（public）
+  PROGRESS_UPDATE: 'progress-update',
+  GAME_END: 'game-end',
 } as const;
 
 export type SocketEvents = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
@@ -143,4 +150,34 @@ export type PieceReleasedPayload = {
   x: number;
   y: number;
   byUserId: string;
+};
+
+// M4 payload types（Zodはschemas.tsで定義）
+export type PiecePlacePayload = {
+  matchId: string;
+  teamId: string;
+  userId: string;
+  pieceId: string;
+  row: number;
+  col: number;
+  x: number;
+  y: number;
+};
+
+export type PiecePlacedPayload = {
+  pieceId: string;
+  row: number;
+  col: number;
+  byUserId: string;
+};
+
+export type ProgressUpdatePayload = {
+  placedByTeam: Record<string, number>;
+};
+
+export type GameEndPayload = {
+  reason: 'completed' | 'timeout' | 'forfeit';
+  winnerTeamId: string | null;
+  scores: Record<string, number>;
+  finishedAt: string;
 };

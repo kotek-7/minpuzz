@@ -2,6 +2,7 @@ import { err, ok, Result } from 'neverthrow';
 import type { Piece } from './types.js';
 
 export type GuardError = 'notFound' | 'placed' | 'notHolder';
+export type PlaceCheckError = GuardError | 'invalidCell';
 
 export function ensureExists(piece: Piece | null): Result<Piece, GuardError> {
   if (!piece) return err('notFound');
@@ -31,3 +32,14 @@ export function withHolder(piece: Piece, userId: string | undefined): Piece {
   return { ...piece, holder: userId };
 }
 
+export function canPlace(
+  piece: Piece | null,
+  userId: string,
+  row: number,
+  col: number
+): Result<Piece, PlaceCheckError> {
+  const base = ensureExists(piece).andThen(ensureNotPlaced).andThen((p) => ensureHolder(p, userId));
+  if (base.isErr()) return err(base.error);
+  if (!Number.isInteger(row) || row < 0 || !Number.isInteger(col) || col < 0) return err('invalidCell');
+  return ok(base.value);
+}

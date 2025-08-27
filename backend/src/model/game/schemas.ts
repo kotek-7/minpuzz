@@ -85,3 +85,25 @@ export type PieceMovePayload = z.infer<typeof PieceMovePayloadSchema>;
 export type PieceMovedPayload = z.infer<typeof PieceMovedPayloadSchema>;
 export type PieceReleasePayload = z.infer<typeof PieceReleasePayloadSchema>;
 export type PieceReleasedPayload = z.infer<typeof PieceReleasedPayloadSchema>;
+
+// M4: piece-place schemas
+export const PiecePlacePayloadSchema = z.object({
+  matchId: z.string().min(1),
+  teamId: z.string().min(1),
+  userId: z.string().min(1),
+  pieceId: z.string().min(1),
+  row: z.number().int().nonnegative(),
+  col: z.number().int().nonnegative(),
+  x: z.number().finite(),
+  y: z.number().finite(),
+});
+
+export const PiecePlacedPayloadSchema = z.object({
+  pieceId: z.string().min(1),
+  row: z.number().int().nonnegative(),
+  col: z.number().int().nonnegative(),
+  byUserId: z.string().min(1),
+});
+
+export type PiecePlacePayload = z.infer<typeof PiecePlacePayloadSchema>;
+export type PiecePlacedPayload = z.infer<typeof PiecePlacedPayloadSchema>;
