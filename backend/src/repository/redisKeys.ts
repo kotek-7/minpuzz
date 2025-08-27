@@ -1,7 +1,24 @@
 import { RedisHashKey, RedisSetKey, RedisStringKey } from "./redisKeyTypes";
 
-// Redis のキー定義
+/**
+ * Redis のキー定義
+ * 
+ * 【重要】キー操作時の必須ルール:
+ * 
+ * ■ チーム作成時:
+ *   team() + teamByNumber() + teamNumbers() を必ずセットで作成
+ * 
+ * ■ チーム削除時:
+ *   team() + teamByNumber() + teamMembers() + teamNumbers() を必ずセットで削除
+ * 
+ * ■ ソケット接続時:
+ *   socketToUser() + userToSocket() を必ずセットで作成
+ * 
+ * ■ ソケット切断時:
+ *   socketToUser() + userToSocket() を必ずセットで削除
+ */
 export const redisKeys = {
+  // チーム基本情報
   team: (teamId: string) => RedisStringKey(`team:${teamId}`),
   // チーム番号の一意性保証とO(1)検索用インデックス
   teamByNumber: (teamNumber: string) => RedisStringKey(`team:number:${teamNumber}`),
@@ -14,4 +31,18 @@ export const redisKeys = {
   // WebSocketセッション管理：複数サーバー間での共有セッション対応
   socketToUser: (socketId: string) => RedisStringKey(`socket:${socketId}:user`),
   userToSocket: (userId: string) => RedisStringKey(`user:${userId}:socket`),
+
+  // マッチング待機チーム管理
+  matchingQueue: () => RedisSetKey(`matching:queue`),
+  matchingTeam: (teamId: string) => RedisStringKey(`matching:team:${teamId}`),
+
+  // マッチ情報
+  match: (matchId: string) => RedisStringKey(`match:${matchId}`),
+  matchTeamConnections: (matchId: string, teamId: string) => RedisSetKey(`match:${matchId}:team:${teamId}:connected`),
+
+  // マッチングの軽量ロック/クレーム管理
+  matchTeamLocks: () => RedisSetKey(`match:locks:teams`),
+  matchTeamLock: (teamId: string) => RedisStringKey(`match:lock:team:${teamId}`),
+  matchPairClaims: () => RedisSetKey(`match:claims:pairs`),
+  matchPairClaim: (pairKey: string) => RedisStringKey(`match:claim:pair:${pairKey}`),
 } as const;

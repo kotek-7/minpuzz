@@ -21,6 +21,8 @@ export enum TeamStatus {
   READY = "READY",
   // 対戦相手検索中（他チームからの参加拒否）
   MATCHING = "MATCHING",
+  // ゲーム準備中（対戦確定後、接続待ちなどの準備段階）
+  PREPARING = "PREPARING",
   // ゲーム進行中（メンバー変更不可）
   IN_GAME = "IN_GAME",
   // ゲーム終了（TTL後自動削除対象）
@@ -48,4 +50,10 @@ export enum MemberStatus {
   ACTIVE = "ACTIVE",
   // 一時切断中（30秒でタイムアウト・自動除名）
   DISCONNECTED = "DISCONNECTED",
+}
+
+export interface MatchingTeamInfo {
+  teamId: string;
+  memberCount: number;
+  joinedAt: string; // ISO8601形式
 }

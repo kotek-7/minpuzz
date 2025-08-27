@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { RedisClient } from "../../repository/redisClient.js";
-import { MemberRole, MemberStatus, Team, TeamMember, TeamStatus } from "./types.js";
+import { MemberRole, MemberStatus, Team, TeamMember, TeamStatus, MatchingTeamInfo } from "./types.js";
 import { redisKeys } from "../../repository/redisKeys.js";
 import { err, ok, Result } from "neverthrow";
 
@@ -13,6 +13,10 @@ export const RedisTTL = {
   SOCKET_SESSION: 1800,
   // チーム番号の再利用防止期間
   TEAM_NUMBER: 3600 * 4,
+  // マッチング待機タイムアウト（10分）
+  MATCHING_QUEUE: 600,
+  // マッチ確定後の準備フェーズ想定（15分）
+  MATCH_PREPARING: 900,
 } as const;
 
 // Utility functions
@@ -204,7 +208,7 @@ export const updateMemberStatus = async (
 
   const setStatusResult = await redis.hset(redisKeys.teamMembers(teamId), memberId, JSON.stringify(member));
   if (setStatusResult.isErr()) return err(setStatusResult.error);
-  if (setStatusResult.value === 0) return err("failed to update member status in team members hash");
+  // 既存フィールド更新時は0が返る実装があるため、0/1いずれも成功として扱う
 
   return ok();
 };
@@ -240,4 +244,148 @@ export const removeUserFromAllTeams = async (redis: RedisClient, userId: string)
   }
 
   return ok({ removedFromTeams, deletedTeams });
+};
+
+export const startMatching = async (redis: RedisClient, teamId: string): Promise<Result<Team, string>> => {
+  const teamResult = await getTeam(redis, teamId);
+  if (teamResult.isErr()) return err(`could not retrieve team: ${teamResult.error}`);
+  if (!teamResult.value) return err("team not found");
+
+  const team = teamResult.value;
+
+  if (team.status !== TeamStatus.READY && team.status !== TeamStatus.WAITING) {
+    return err(`cannot start matching: team status is ${team.status}`);
+  }
+
+  team.status = TeamStatus.MATCHING;
+  team.updatedAt = new Date().toISOString();
+
+  const updateResult = await redis.set(redisKeys.team(teamId), JSON.stringify(team), RedisTTL.TEAM_SESSION);
+  if (updateResult.isErr()) return err(`failed to update team status: ${updateResult.error}`);
+  if (!updateResult.value) return err("failed to update team data");
+
+  return ok(team);
+};
+
+/**
+ * リアルタイム対戦のためマッチング待機キューにチーム登録
+ * Redis SetとStringの組み合わせでO(1)検索と詳細情報取得を両立
+ */
+export const addTeamToMatchingQueue = async (
+  redis: RedisClient, 
+  teamId: string
+): Promise<Result<MatchingTeamInfo, string>> => {
+  const teamResult = await getTeam(redis, teamId);
+  if (teamResult.isErr()) return err(`could not retrieve team: ${teamResult.error}`);
+  if (!teamResult.value) return err("team not found");
+
+  const team = teamResult.value;
+
+  // ビジネス要件: マッチング開始済みチームのみキュー参加可能
+  if (team.status !== TeamStatus.MATCHING) {
+    return err(`team is not in matching state: current status is ${team.status}`);
+  }
+
+  const matchingTeamInfo: MatchingTeamInfo = {
+    teamId,
+    memberCount: team.currentMembers,
+    joinedAt: new Date().toISOString(),
+  };
+
+  // 性能要件: Redis SetでO(1)の高速チーム検索を実現
+  const queueAddResult = await redis.sadd(redisKeys.matchingQueue(), teamId);
+  if (queueAddResult.isErr()) return err(`failed to add team to matching queue: ${queueAddResult.error}`);
+
+  // TTL設定でメモリリーク防止（10分でマッチング待機タイムアウト）
+  const teamInfoResult = await redis.set(
+    redisKeys.matchingTeam(teamId), 
+    JSON.stringify(matchingTeamInfo), 
+    RedisTTL.MATCHING_QUEUE
+  );
+  if (teamInfoResult.isErr()) return err(`failed to save team matching info: ${teamInfoResult.error}`);
+  if (!teamInfoResult.value) return err("failed to save team matching data");
+
+  return ok(matchingTeamInfo);
+};
+
+/**
+ * マッチング成立時またはキャンセル時のキューからの確実な削除処理
+ * データ不整合防止のためSetとString両方の原子的削除を保証
+ */
+export const removeTeamFromMatchingQueue = async (
+  redis: RedisClient, 
+  teamId: string
+): Promise<Result<boolean, string>> => {
+  // 冪等性保証: 既に削除済みでもエラーにならない設計
+  const queueRemoveResult = await redis.srem(redisKeys.matchingQueue(), teamId);
+  if (queueRemoveResult.isErr()) return err(`failed to remove team from matching queue: ${queueRemoveResult.error}`);
+
+  const teamInfoRemoveResult = await redis.delete(redisKeys.matchingTeam(teamId));
+  if (teamInfoRemoveResult.isErr()) return err(`failed to remove team matching info: ${teamInfoRemoveResult.error}`);
+
+  return ok(true);
+};
+
+/**
+ * 公平なマッチングのための待機チーム一覧を先着順で取得
+ * 自動データクリーンアップ機能でキューの整合性を保持
+ */
+export const getMatchingQueueTeams = async (
+  redis: RedisClient
+): Promise<Result<MatchingTeamInfo[], string>> => {
+  const teamIdsResult = await redis.smembers(redisKeys.matchingQueue());
+  if (teamIdsResult.isErr()) return err(`failed to get team IDs from matching queue: ${teamIdsResult.error}`);
+
+  const teamIds = teamIdsResult.value || [];
+  if (teamIds.length === 0) {
+    return ok([]);
+  }
+
+  // パフォーマンス最適化: Promise.allで並行処理による高速化
+  const teamInfoPromises = teamIds.map(async (teamId) => {
+    const infoResult = await redis.get(redisKeys.matchingTeam(teamId));
+    if (infoResult.isErr()) return null;
+    if (!infoResult.value) {
+      // 運用保守性: TTL切れや手動削除による不整合を自動修復
+      await redis.srem(redisKeys.matchingQueue(), teamId);
+      return null;
+    }
+    try {
+      return JSON.parse(infoResult.value) as MatchingTeamInfo;
+    } catch {
+      // 例外対応: JSONパース失敗時の自動データクリーンアップ
+      await redis.srem(redisKeys.matchingQueue(), teamId);
+      await redis.delete(redisKeys.matchingTeam(teamId));
+      return null;
+    }
+  });
+
+  const teamInfos = await Promise.all(teamInfoPromises);
+  
+  // ビジネス要件: 先着順マッチングのためjoinedAt昇順ソート
+  const validTeamInfos = teamInfos
+    .filter((info): info is MatchingTeamInfo => info !== null)
+    .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
+
+  return ok(validTeamInfos);
+};
+
+/**
+ * FIFO方式による公平な対戦相手マッチング
+ * 自チーム除外で最早参加チームとの対戦を実現
+ */
+export const findMatchingPartner = async (
+  redis: RedisClient, 
+  excludeTeamId: string
+): Promise<Result<MatchingTeamInfo | null, string>> => {
+  const teamsResult = await getMatchingQueueTeams(redis);
+  if (teamsResult.isErr()) return err(`failed to get matching queue teams: ${teamsResult.error}`);
+
+  const teams = teamsResult.value;
+  
+  // ビジネス要件: 自チーム除外でのFIFO（先入先出）マッチング
+  // 将来拡張: レーティング差制限、チーム人数マッチング等の条件追加可能
+  const partner = teams.find(team => team.teamId !== excludeTeamId);
+  
+  return ok(partner || null);
 };

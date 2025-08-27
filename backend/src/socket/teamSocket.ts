@@ -7,9 +7,17 @@ import {
   MemberJoinedPayload,
   MemberLeftPayload,
   TeamUpdatedPayload,
+  JoinMatchingQueuePayload,
+  NavigateToMatchingPayload,
+  MatchFoundPayload,
+  JoinGamePayload,
+  GameStartPayload,
 } from "./events.js";
 import { getTeamRoom, addSocketUserMapping, removeSocketUserMapping, getUserBySocketId } from "./utils.js";
 import * as TeamModel from "../model/team/team.js";
+import * as Matching from "../model/matching/matching.js";
+import * as GameSession from "../model/game/session.js";
+import { redisKeys } from "../repository/redisKeys.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
@@ -152,11 +160,116 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
 
       // 切断時の必須クリーンアップ：Redisからマッピング削除でメモリリーク防止
       const removeResult = await removeSocketUserMapping(redis, socket.id);
-      if (removeUserFromAllTeamsResult.isErr()) {
-        console.error(`Failed to remove socket mapping on disconnect: ${removeUserFromAllTeamsResult.error}`);
+      if (removeResult.isErr()) {
+        console.error(`Failed to remove socket mapping on disconnect: ${removeResult.error}`);
       }
     } catch (error) {
       console.error(`Error handling disconnect:`, error);
+    }
+  });
+
+  // マッチング関連イベント
+  socket.on(SOCKET_EVENTS.JOIN_MATCHING_QUEUE, async (payload: JoinMatchingQueuePayload) => {
+    try {
+      const { teamId, userId } = payload;
+      console.log(`User ${userId} (${socket.id}) joining matching queue for team ${teamId}`);
+
+      // チームの存在確認
+      const teamResult = await TeamModel.getTeam(redis, teamId);
+      if (teamResult.isErr()) {
+        console.error(`Failed to get team ${teamId}: ${teamResult.error}`);
+        socket.emit("error", { message: "Team not found" });
+        return;
+      }
+
+      if (!teamResult.value) {
+        console.error(`Team ${teamId} not found`);
+        socket.emit("error", { message: "Team not found" });
+        return;
+      }
+
+      const team = teamResult.value;
+
+      // チームステータスがMATCHING状態であることを確認
+      if (team.status !== 'MATCHING') {
+        console.error(`Team ${teamId} is not in matching state, current status: ${team.status}`);
+        socket.emit("error", { message: "Team is not ready for matching" });
+        return;
+      }
+
+      // チーム全体にマッチング画面への遷移を通知
+      const teamRoom = getTeamRoom(teamId);
+      const navigatePayload: NavigateToMatchingPayload = {
+        teamId,
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log(`Broadcasting navigate to matching for team ${teamId}`);
+      io.to(teamRoom).emit(SOCKET_EVENTS.NAVIGATE_TO_MATCHING, navigatePayload);
+      // 成立判定はドメインに委譲。成立時だけ通知する（待機時は何もしない）
+      const joinQueueResult = await Matching.joinQueue(redis, teamId);
+      if (joinQueueResult.isErr()) {
+        console.error(`joinQueue failed for team ${teamId}: ${joinQueueResult.error}`);
+        // バックエンド内部エラーはフロントへ露出しすぎないよう小さく通知
+        socket.emit("error", { message: "Failed to process matching" });
+        return;
+      }
+
+      if (joinQueueResult.value.type === "found") {
+        const { matchId, self, partner } = joinQueueResult.value;
+        const matchFoundPayload: MatchFoundPayload = {
+          matchId,
+          self: { teamId: self.teamId, memberCount: self.memberCount },
+          partner: { teamId: partner.teamId, memberCount: partner.memberCount },
+          timestamp: new Date().toISOString(),
+        };
+
+        const selfRoom = getTeamRoom(self.teamId);
+        const partnerRoom = getTeamRoom(partner.teamId);
+        console.log(`Match found ${matchId}: ${self.teamId} vs ${partner.teamId}`);
+        io.to(selfRoom).emit(SOCKET_EVENTS.MATCH_FOUND, matchFoundPayload);
+        io.to(partnerRoom).emit(SOCKET_EVENTS.MATCH_FOUND, matchFoundPayload);
+      }
+    } catch (error) {
+      console.error(`Error joining matching queue:`, error);
+      socket.emit("error", { message: "Failed to join matching queue" });
+    }
+  });
+
+  // ゲーム接続フェーズ: 各プレイヤーの接続登録
+  socket.on(SOCKET_EVENTS.JOIN_GAME, async (payload: JoinGamePayload) => {
+    try {
+      const { matchId, teamId, userId } = payload;
+      const recordResult = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
+      if (recordResult.isErr()) {
+        console.error(`recordPlayerConnected failed: ${recordResult.error}`);
+        socket.emit("error", { message: "Failed to join game" });
+        return;
+      }
+      if (recordResult.value.allConnected) {
+        const gameStartPayload: GameStartPayload = { matchId, timestamp: new Date().toISOString() };
+        // 両チームのroomに限定してブロードキャスト
+        const matchRaw = await redis.get(redisKeys.match(matchId));
+        if (matchRaw.isOk() && matchRaw.value) {
+          try {
+            const match = JSON.parse(matchRaw.value) as { teamA: { teamId: string }; teamB: { teamId: string } };
+            const roomA = getTeamRoom(match.teamA.teamId);
+            const roomB = getTeamRoom(match.teamB.teamId);
+            io.to(roomA).emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+            io.to(roomB).emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+          } catch (e) {
+            console.error("Failed to parse match for GAME_START rooms:", e);
+            // フォールバックで、少なくともこのteamのroomへは通知
+            io.to(getTeamRoom(teamId)).emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+          }
+        } else {
+          // フォールバック: 少なくともこのteamのroomへ通知
+          io.to(getTeamRoom(teamId)).emit(SOCKET_EVENTS.GAME_START, gameStartPayload);
+        }
+      }
+    } catch (error) {
+      console.error(`Error on JOIN_GAME:`, error);
+      socket.emit("error", { message: "Failed to process game join" });
     }
   });
 }
