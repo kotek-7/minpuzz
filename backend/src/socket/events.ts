@@ -33,6 +33,9 @@ export const SOCKET_EVENTS = {
   GAME_END: 'game-end',
   // タイマー（M5）
   TIMER_SYNC: 'timer-sync',
+  // 同期（M6）
+  REQUEST_GAME_INIT: 'request-game-init',
+  STATE_SYNC: 'state-sync',
 } as const;
 
 export type SocketEvents = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
@@ -196,4 +199,19 @@ export type TimerSyncPayload = {
   startedAt: string | null;
   durationMs: number | null;
   remainingMs: number;
+};
+
+// M6
+export type RequestGameInitPayload = {
+  matchId: string;
+  teamId: string;
+  userId: string;
+};
+
+export type StateSyncPayload = {
+  board: { rows: number; cols: number };
+  pieces: any[]; // Piece type is declared in model layer; runtime payload uses schema
+  score: { placedByTeam: Record<string, number> };
+  timer: { startedAt: string; durationMs: number } | null;
+  matchStatus: string;
 };

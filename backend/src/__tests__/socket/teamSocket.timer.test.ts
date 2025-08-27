@@ -52,7 +52,7 @@ describe('teamSocket: timer integration', () => {
     const started = calls.filter(c => c.event === SOCKET_EVENTS.GAME_START);
     expect(started.length).toBeGreaterThanOrEqual(1);
 
-    jest.advanceTimersByTime(5100);
+    await jest.advanceTimersByTimeAsync(5100);
     const syncs = calls.filter(c => c.event === SOCKET_EVENTS.TIMER_SYNC && c.room === `room:match:${matchId}:public`);
     expect(syncs.length).toBeGreaterThanOrEqual(1);
   });
@@ -103,9 +103,8 @@ describe('teamSocket: timer integration', () => {
     const startedAtPast = new Date(now.getTime() - 120_000).toISOString();
     await store.setTimer(matchId, { startedAt: startedAtPast, durationMs: 60_000 });
 
-    jest.advanceTimersByTime(5100);
+    await jest.advanceTimersByTimeAsync(5100);
     const ends = calls.filter(c => c.event === SOCKET_EVENTS.GAME_END && c.payload?.reason === 'timeout');
     expect(ends.length).toBe(1);
   });
 });
-

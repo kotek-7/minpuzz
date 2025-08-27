@@ -20,18 +20,21 @@ import * as GameSession from "../model/game/session.js";
 import { redisKeys } from "../repository/redisKeys.js";
 import { buildInitPayload, buildInitPayloadWithTimer } from "../model/game/init.js";
 import * as PieceService from "../model/game/pieceService.js";
-import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSchema, PiecePlacePayloadSchema } from "../model/game/schemas.js";
+import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSchema, PiecePlacePayloadSchema, RequestGameInitPayloadSchema } from "../model/game/schemas.js";
 import { createGameStore } from "../config/di.js";
 import { createThrottler } from "./middleware/rateLimit.js";
 import { createTimerScheduler } from "./middleware/timerScheduler.js";
 import { incrementTeamPlacedAndGetScore } from "../model/game/progress.js";
 import { completeMatchIfNeeded } from "../model/game/endService.js";
 import { seedPiecesIfEmpty } from "../model/game/seed.js";
+import { buildStateSnapshot } from "../model/game/state.js";
+import { reclaimLocksForUserAcrossMatches } from "../model/game/lockReclaimService.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   const store = createGameStore(redis);
   const moveThrottler = createThrottler(40);
   const timerScheduler = createTimerScheduler(io as any, store);
+  const stateSyncThrottler = createThrottler(500);
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
     try {
       const { teamId, userId } = payload;
@@ -175,6 +178,13 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       if (removeResult.isErr()) {
         console.error(`Failed to remove socket mapping on disconnect: ${removeResult.error}`);
       }
+
+      // M6: ロック回収（このユーザーが保持中のピースを解放）
+      try {
+        await reclaimLocksForUserAcrossMatches(redis, store, userId);
+      } catch (e) {
+        console.error('Failed to reclaim locks on disconnect', e);
+      }
     } catch (error) {
       console.error(`Error handling disconnect:`, error);
     }
@@ -260,6 +270,11 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
           initPayload = buildInitPayloadWithTimer({ matchId, teamId, userId }, timerRes.value);
         }
         socket.emit(SOCKET_EVENTS.GAME_INIT, initPayload);
+        // 任意強化: 即時のstate-syncを本人へ（ズレ最小化）
+        try {
+          const snap = await buildStateSnapshot(store, matchId);
+          if (snap.isOk()) socket.emit(SOCKET_EVENTS.STATE_SYNC, snap.value);
+        } catch {}
       } catch (e) {
         console.error("Failed to emit game-init:", e);
       }
@@ -332,6 +347,20 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       }
     } catch (e) {
       socket.emit('error', { message: 'invalid payload for piece-grab' });
+    }
+  });
+
+  // M6: request-game-init -> state-sync（本人宛に最新スナップショット）
+  socket.on(SOCKET_EVENTS.REQUEST_GAME_INIT, async (payload) => {
+    try {
+      const p = RequestGameInitPayloadSchema.parse(payload);
+      if (!stateSyncThrottler.shouldAllow(socket.id)) return;
+      const snap = await buildStateSnapshot(store, p.matchId);
+      if (snap.isOk()) {
+        socket.emit(SOCKET_EVENTS.STATE_SYNC, snap.value);
+      }
+    } catch {
+      socket.emit('error', { message: 'invalid payload for request-game-init' });
     }
   });
 

@@ -124,3 +124,21 @@ export const TimerSyncPayloadSchema = z.object({
   remainingMs: z.number().int().nonnegative(),
 });
 export type TimerSyncPayload = z.infer<typeof TimerSyncPayloadSchema>;
+
+// M6: state sync schemas
+export const RequestGameInitPayloadSchema = z.object({
+  matchId: z.string().min(1),
+  teamId: z.string().min(1),
+  userId: z.string().min(1),
+});
+
+export const StateSyncPayloadSchema = z.object({
+  board: z.object({ rows: z.number().int().positive(), cols: z.number().int().positive() }),
+  pieces: z.array(PieceSchema),
+  score: ScoreSchema,
+  timer: TimerSchema.nullable(),
+  matchStatus: z.string(),
+});
+
+export type RequestGameInitPayload = z.infer<typeof RequestGameInitPayloadSchema>;
+export type StateSyncPayload = z.infer<typeof StateSyncPayloadSchema>;

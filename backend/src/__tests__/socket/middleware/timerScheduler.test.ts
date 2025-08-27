@@ -19,7 +19,7 @@ describe('timerScheduler', () => {
     const sched = createTimerScheduler(ioMock, store, 50);
     sched.start(matchId);
     // 1 tick
-    jest.advanceTimersByTime(60);
+    await jest.advanceTimersByTimeAsync(60);
     const syncs1 = calls.filter(c => c.event === SOCKET_EVENTS.TIMER_SYNC).length;
     expect(syncs1).toBeGreaterThanOrEqual(1);
     const ends1 = calls.filter(c => c.event === SOCKET_EVENTS.GAME_END).length;
@@ -27,7 +27,7 @@ describe('timerScheduler', () => {
 
     sched.stop(matchId);
     // advance more - no new emissions should occur
-    jest.advanceTimersByTime(100);
+    await jest.advanceTimersByTimeAsync(100);
     const syncs2 = calls.filter(c => c.event === SOCKET_EVENTS.TIMER_SYNC).length;
     expect(syncs2).toBe(syncs1);
   });
@@ -47,16 +47,15 @@ describe('timerScheduler', () => {
     const sched = createTimerScheduler(ioMock, store, 50);
     sched.start(matchId);
 
-    jest.advanceTimersByTime(60);
+    await jest.advanceTimersByTimeAsync(60);
     const syncs = calls.filter(c => c.event === SOCKET_EVENTS.TIMER_SYNC).length;
     const ends = calls.filter(c => c.event === SOCKET_EVENTS.GAME_END && c.payload?.reason === 'timeout').length;
     expect(syncs).toBeGreaterThanOrEqual(1);
     expect(ends).toBe(1);
 
     // after scheduler auto-stop, further time advances should not add events
-    jest.advanceTimersByTime(200);
+    await jest.advanceTimersByTimeAsync(200);
     const endsAfter = calls.filter(c => c.event === SOCKET_EVENTS.GAME_END && c.payload?.reason === 'timeout').length;
     expect(endsAfter).toBe(1);
   });
 });
-
