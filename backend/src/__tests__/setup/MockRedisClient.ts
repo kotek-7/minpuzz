@@ -64,6 +64,22 @@ export class MockRedisClient implements RedisClient {
     });
   }
 
+  async setNxPx(key: RedisStringKey, value: string, ttlMs: number): Promise<Result<boolean, string>> {
+    return this.simulateRedisOperation(() => {
+      const existing = this.storage.strings.get(key.key);
+      // Clean up expired
+      if (existing && existing.expiresAt && existing.expiresAt < Date.now()) {
+        this.storage.strings.delete(key.key);
+      }
+      if (this.storage.strings.has(key.key)) {
+        return false;
+      }
+      const expiresAt = Date.now() + ttlMs;
+      this.storage.strings.set(key.key, { value, expiresAt });
+      return true;
+    });
+  }
+
   async get(key: RedisStringKey): Promise<Result<string | null, string>> {
     return this.simulateRedisOperation(() => {
       this.checkExpiration(key.key);

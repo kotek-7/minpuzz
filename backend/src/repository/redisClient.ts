@@ -4,6 +4,8 @@ import { RedisHashKey, RedisKey, RedisListKey, RedisSetKey, RedisStringKey } fro
 // Redis client interface
 export interface RedisClient {
   set(key: RedisStringKey, value: string, ttl?: number): Promise<Result<boolean, string>>;
+  // Atomic set if not exists with TTL in milliseconds (SET key value NX PX ttlMs)
+  setNxPx(key: RedisStringKey, value: string, ttlMs: number): Promise<Result<boolean, string>>;
   get(key: RedisStringKey): Promise<Result<string | null, string>>;
   delete(key: RedisKey): Promise<Result<number, string>>;
   hset(key: RedisHashKey, field: string, value: string): Promise<Result<number, string>>;

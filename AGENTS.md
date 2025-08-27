@@ -7,3 +7,5 @@
 @docs/sequence-home-to-team.mmd
 ## Typescriptについてのコーディングルール
 @docs/typescript
+
+**かならず日本語で解答すること**
