@@ -18,6 +18,7 @@ import * as TeamModel from "../model/team/team.js";
 import * as Matching from "../model/matching/matching.js";
 import * as GameSession from "../model/game/session.js";
 import { redisKeys } from "../repository/redisKeys.js";
+import { buildInitPayload } from "../model/game/init.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
@@ -240,6 +241,13 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
   socket.on(SOCKET_EVENTS.JOIN_GAME, async (payload: JoinGamePayload) => {
     try {
       const { matchId, teamId, userId } = payload;
+      // 参加直後にダミーの game-init を参加者へ返す
+      try {
+        const initPayload = buildInitPayload({ matchId, teamId, userId });
+        socket.emit(SOCKET_EVENTS.GAME_INIT, initPayload);
+      } catch (e) {
+        console.error("Failed to emit game-init:", e);
+      }
       const recordResult = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
       if (recordResult.isErr()) {
         console.error(`recordPlayerConnected failed: ${recordResult.error}`);

@@ -12,6 +12,7 @@ export const SOCKET_EVENTS = {
   NAVIGATE_TO_MATCHING: 'navigate-to-matching',
   MATCH_FOUND: 'match-found',
   JOIN_GAME: 'join-game',
+  GAME_INIT: 'game-init',
   GAME_START: 'game-start',
 } as const;
 
@@ -78,4 +79,14 @@ export interface JoinGamePayload {
 export interface GameStartPayload {
   matchId: string;
   timestamp: string;
+}
+
+export interface GameInitPayload {
+  matchId: string;
+  teamId: string;
+  userId: string;
+  board: { rows: number; cols: number };
+  pieces: Array<{ id: string; x: number; y: number; placed: boolean; row?: number; col?: number }>;
+  startedAt: string | null;
+  durationMs: number | null;
 }
