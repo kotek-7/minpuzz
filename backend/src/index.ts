@@ -1,11 +1,44 @@
 import app from "./app.js";
 import { env } from "./env.js";
+import { Server } from "socket.io";
+import { registerTeamHandler } from "./socket/teamSocket.js";
+import { createServer } from "http";
+import { getRedisClient, connectRedis } from "./repository/redisClientImpl.js";
 
 const port = env.PORT;
-const server = app.listen(port, () => {
-  /* eslint-disable no-console */
+
+// 本物のRedisクライアントを使用
+const redisClient = getRedisClient();
+
+const httpServer = createServer(app);
+
+// Socket.io初期化（CORS設定とRedis連携）
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    methods: ["GET", "POST"],
+  },
+});
+
+console.log("Socket.io server initialized");
+
+io.on("connection", (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
+  registerTeamHandler(io, socket, redisClient);
+});
+
+// Redis接続
+connectRedis().then((result) => {
+  if (result.isErr()) {
+    console.error("Failed to connect to Redis:", result.error);
+  } else {
+    console.log("Redis connected successfully");
+  }
+});
+
+// Start server
+const server = httpServer.listen(port, () => {
   console.log(`Listening: http://localhost:${port}`);
-  /* eslint-enable no-console */
 });
 
 server.on("error", (err) => {

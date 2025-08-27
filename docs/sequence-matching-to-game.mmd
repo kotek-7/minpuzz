@@ -1,0 +1,59 @@
+%%{init: {'theme':'default', 'themeVariables': {'primaryColor': '#4f46e5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#3730a3', 'lineColor': '#374151', 'secondaryColor': '#e5e7eb', 'tertiaryColor': '#f3f4f6'}}}%%
+
+sequenceDiagram
+    participant U1 as ユーザー1
+    participant F1 as フロントエンド1
+    participant B as バックエンド
+    participant R as Redis
+    participant F2 as フロントエンド2
+    participant U2 as ユーザー2
+
+    Note over U1,U2: マッチングからゲーム開始まで（実装準拠）
+
+    Note over U1,F1: チーム1: 必要人数が揃った状態
+    U1->>F1: ゲームスタートボタンをクリック
+    F1->>B: POST /teams/{teamId}/startMatching
+    B->>R: チーム1のステータスを MATCHING に更新
+    R-->>B: 更新完了
+    B-->>F1: 200 OK（マッチング開始）
+    F1->>B: Socket emit: join-matching-queue
+    B->>F1: Socket to team: navigate-to-matching
+    F1->>F1: マッチング画面へ遷移
+
+    Note over B,R: マッチング待機・検索
+    B->>R: matching:queue へ teamId を追加（TTL付の matching:team:{teamId} を保存）
+    B->>R: matching:queue の一覧を取得（joinedAt 昇順・自チーム除外）
+
+    alt 対戦相手チームが既に待機中
+        R-->>B: 先着チーム情報を返却
+        Note over B,R: 競合対策（軽量ロック・ペアクレーム）
+        B->>R: SADD match:locks:teams で両チームをロック（補助StringにTTL）
+        B->>R: SADD match:claims:pairs でペアをクレーム（補助StringにTTL）
+        B->>R: matching:queue から両チームを削除
+        B->>R: チーム両方のステータスを PREPARING に更新
+        B->>R: match:{matchId} を PREPARING で保存（teamA/B, createdAt, TTL）
+        B->>F1: Socket to teamA: match-found（matchId, self, partner）
+        B->>F2: Socket to teamB: match-found（同一ペイロード）
+    else 対戦相手が見つからない
+        Note over U1,F1: チーム1は待機状態（matching:queue に残る）
+        Note over U2,F2: チーム2が人数揃い後に同じ流れで合流
+        U2->>F2: ゲームスタートボタンをクリック
+        F2->>B: POST /teams/{team2Id}/startMatching
+        B->>R: チーム2のステータスを MATCHING に更新
+        B-->>F2: 200 OK
+        F2->>B: Socket emit: join-matching-queue
+        B->>F2: Socket to team: navigate-to-matching
+        F2->>F2: マッチング画面へ遷移
+        B->>R: matching:queue を確認し、チーム1とマッチング成立へ
+    end
+
+    Note over F1,F2: マッチング成立後（準備フェーズ）
+    par 両チームに並行通知
+        B->>F1: match-found 受信→ゲーム画面へ遷移
+        F1-->>U1: ゲーム接続画面を表示
+    and
+        B->>F2: match-found 受信→ゲーム画面へ遷移
+        F2-->>U2: ゲーム接続画面を表示
+    end
+
+    Note over U1,U2: 以降のゲーム接続フェーズは sequence-game-connection.mmd を参照

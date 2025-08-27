@@ -1,8 +1,6 @@
 # ローカル開発環境用 Docker Compose
 # Supabase: 独立で `supabase start` を使用
-# 本番環境: 各サービスを個別にデプロイ（Vercel, Railway）
-
-version: '3.8'
+# 本番環境: 各サービスを個別にデプロイ（Vercel, Render）
 
 services:
   # Redis セッション管理用
@@ -22,18 +20,12 @@ services:
 
   # Backend API Server (開発用)
   backend:
+    env_file:
+      - ./backend/.env
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: deps  # Use deps stage which has pnpm and dependencies
-    environment:
-      - NODE_ENV=development
-      - PORT=3001
-      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:54322/postgres
-      - REDIS_URL=redis://redis:6379
-      - SUPABASE_URL=http://host.docker.internal:54321
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
     ports:
       - "3001:3001"
     volumes:
@@ -50,15 +42,12 @@ services:
 
   # Frontend Next.js Application (開発用)
   frontend:
+    env_file:
+      - ./frontend/.env
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: deps  # Use deps stage which has pnpm and dependencies
-    environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
-      - WATCHPACK_POLLING=true
-      - NEXT_TELEMETRY_DISABLED=1
     ports:
       - "3000:3000"
     volumes:

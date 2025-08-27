@@ -33,8 +33,6 @@ RUN pnpm run build
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
-
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 backend
 
@@ -45,9 +43,7 @@ COPY --from=builder --chown=backend:nodejs /app/package.json ./package.json
 
 USER backend
 
-EXPOSE 3001
-
-ENV PORT=3001
+EXPOSE ${PORT}
 
 # アプリケーションの開始（nodeで直接実行）
 CMD ["node", "dist/index.js"]

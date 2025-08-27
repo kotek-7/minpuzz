@@ -59,22 +59,30 @@ project-root/
 ├── backend/             # Express.js サーバー
 │   ├── src/
 │   │   ├── routes/      # API ルート
-│   │   ├── services/    # ビジネスロジック
+│   │   ├── controller/  # API コントローラー
+│   │   ├── model/       # データモデル
+│   │   ├── repository/  # データアクセス層・Redis操作
+│   │   ├── shared/      # 共有ユーティリティ
 │   │   ├── socket/      # Socket.io ハンドラー
-│   │   └── prisma/      # Prisma設定
+│   │   ├── generated/   # Prisma生成ファイル
+│   │   └── middlewares.ts
+│   └── prisma/          # Prisma設定・スキーマ（未作成）
 ├── supabase/            # Supabaseローカル開発環境
-│   ├── config.toml      # Supabase設定
-│   ├── migrations/      # DBマイグレーション
-│   ├── seed.sql         # 初期データ
+│   └── supabase/
+│       └── config.toml  # Supabase設定
 └── docs/
-    └── specification.md # 本仕様書
+    ├── specification.md # 本仕様書
+    ├── architecture.mmd # アーキテクチャ図
+    ├── sequence-home-to-team.mmd # シーケンス図
+    └── typescript/      # TypeScript開発ガイド
+        └── fp.md        # 関数型プログラミングガイド
 ```
 
 ## デプロイ・運用
 
 ### 本番環境
 - **フロントエンド**: Vercel
-- **バックエンド**: Railway
+- **バックエンド**: Render
 - **Redis**: Upstash
 - **PostgreSQL**: Supabase
 
@@ -99,7 +107,7 @@ project-root/
 
 2. **アプリケーションデプロイ**
    - フロントエンド: Vercel自動デプロイ
-   - バックエンド: Railway自動デプロイ
+   - バックエンド: Render自動デプロイ
 
 3. **環境設定管理**
    - 環境変数の適切な設定
@@ -112,8 +120,13 @@ project-root/
 - チーム状態、ゲーム進行、マッチング状況の即座反映
 
 ### 状態管理
-- **Redis**: 一時的なゲーム状態、セッション管理
-- **PostgreSQL**: 永続化が必要なユーザー情報、ゲーム履歴
+- **Redis**: 一時的なゲーム状態、セッション管理（現在はMock実装）
+- **PostgreSQL**: 永続化が必要なユーザー情報、ゲーム履歴（Prisma未設定）
+
+### アーキテクチャパターン
+- **関数型ドメインモデリング**: docs/typescript/fp.md参照
+- **Result型エラーハンドリング**: neverthrowライブラリ使用
+- **型安全性**: Zodバリデーション、TypeScript strict mode
 
 ## 今後の拡張性
 
