@@ -1,9 +1,10 @@
-import { InMemoryGameStore } from '../../../repository/gameStore.memory.js';
+import { RedisGameStore } from '../../../repository/gameStore.redis.js';
+import { MockRedisClient } from '../../setup/MockRedisClient.js';
 import * as PieceService from '../../../model/game/pieceService.js';
 
 describe('pieceService grab/move/release', () => {
   test('grab succeeds and sets holder; parallel grabs conflict', async () => {
-    const store = new InMemoryGameStore();
+    const store = new RedisGameStore(new MockRedisClient() as any);
     await store.setPiece('m', { id: 'p', x: 0, y: 0, placed: false });
 
     const [r1, r2] = await Promise.all([
@@ -17,7 +18,7 @@ describe('pieceService grab/move/release', () => {
   });
 
   test('move rejects non-holder and updates position for holder', async () => {
-    const store = new InMemoryGameStore();
+    const store = new RedisGameStore(new MockRedisClient() as any);
     await store.setPiece('m', { id: 'p', x: 0, y: 0, placed: false });
     await PieceService.grab(store, { matchId: 'm', pieceId: 'p', userId: 'u1', lockTtlSec: 1 });
 
@@ -29,7 +30,7 @@ describe('pieceService grab/move/release', () => {
   });
 
   test('release clears holder and allows new grab', async () => {
-    const store = new InMemoryGameStore();
+    const store = new RedisGameStore(new MockRedisClient() as any);
     await store.setPiece('m', { id: 'p', x: 0, y: 0, placed: false });
     await PieceService.grab(store, { matchId: 'm', pieceId: 'p', userId: 'u1', lockTtlSec: 1 });
     const rel = await PieceService.release(store, { matchId: 'm', pieceId: 'p', userId: 'u1', x: 1, y: 2 });
@@ -39,4 +40,3 @@ describe('pieceService grab/move/release', () => {
     expect(grab2.isOk()).toBe(true);
   });
 });
-

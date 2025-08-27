@@ -1,9 +1,10 @@
-import { InMemoryGameStore } from '../../repository/gameStore.memory.js';
+import { RedisGameStore } from '../../repository/gameStore.redis.js';
+import { MockRedisClient } from '../setup/MockRedisClient.js';
 import * as PieceService from '../../model/game/pieceService.js';
 
 describe('Scenario: grab -> move -> release -> re-grab', () => {
   test('happy path with conflicts and holder checks', async () => {
-    const store = new InMemoryGameStore();
+    const store = new RedisGameStore(new MockRedisClient() as any);
     const matchId = 'm1';
     const pieceId = 'p1';
     await store.setPiece(matchId, { id: pieceId, x: 0, y: 0, placed: false });
@@ -44,4 +45,3 @@ describe('Scenario: grab -> move -> release -> re-grab', () => {
     expect(g3.isOk()).toBe(true);
   });
 });
-

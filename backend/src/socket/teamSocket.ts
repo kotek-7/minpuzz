@@ -25,7 +25,7 @@ import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSche
 import { createGameStore } from "../config/di.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
-  const store = createGameStore(redis, 'redis');
+  const store = createGameStore(redis);
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
     try {
       const { teamId, userId } = payload;
