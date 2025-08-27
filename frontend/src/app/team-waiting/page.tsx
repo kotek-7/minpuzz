@@ -13,7 +13,9 @@
 import React, { use } from "react";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { io, Socket } from "socket.io-client";
+import { Socket } from "socket.io-client";
+import { getSocket } from "@/lib/socket/client";
+import { startMatching } from "@/features/matching/api";
 
 export default function TeamWaitingPage() {
   const [team, setTeam] = useState<any>(null);
@@ -67,7 +69,7 @@ export default function TeamWaitingPage() {
         setMembers(membersResult.data);
 
         // Socket.io接続とイベントリスナー設定
-        const socket = io(apiUrl);
+        const socket = getSocket();
         socketRef.current = socket;
 
         // 新しいメンバーが参加した時
@@ -148,25 +150,8 @@ export default function TeamWaitingPage() {
 
     initializeTeamWaiting().then(() => {
       const cleanUp = () => {
-        if (socketRef.current) {
-          // チームから離脱
-          socketRef.current.emit("leave-team", {
-            teamId: teamId,
-            userId: sessionStorage.getItem("userId"),
-          });
-          socketRef.current.disconnect();
-          socketRef.current = null;
-
-          fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/v1/teams/${teamId}/members/${sessionStorage.getItem("userId")}`,
-            {
-              method: "DELETE",
-              headers: {
-                "Content-Type": "application/json",
-              },
-            },
-          );
-        }
+        // マッチング〜ゲーム接続フェーズを跨ぐため、ここでは切断・leave を行わない
+        // ルーム離脱や切断は明示操作（ホームへ戻る等）で実施する
       };
 
       if (abortController.signal.aborted) {
@@ -274,12 +259,7 @@ export default function TeamWaitingPage() {
 
           {memberCount >= 2 && (
             <div className="mb-4">
-              <button
-                onClick={() => router.push(`/matching?teamId=${teamId}&teamNumber=${teamNumber}`)}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-              >
-                マッチング開始
-              </button>
+              <StartMatchingButton teamId={teamId!} teamNumber={teamNumber!} />
             </div>
           )}
         </div>
@@ -297,5 +277,32 @@ export default function TeamWaitingPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+function StartMatchingButton({ teamId, teamNumber }: { teamId: string; teamNumber: string }) {
+  const [submitting, setSubmitting] = React.useState(false);
+  const router = useRouter();
+  const onClick = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const userId = sessionStorage.getItem('userId') || '';
+      if (!userId) throw new Error('ユーザーIDが見つかりません');
+      await startMatching(teamId, userId);
+      // 以降の遷移はサーバの navigate-to-matching に委譲
+    } catch (e: any) {
+      alert(e?.message || 'マッチング開始に失敗しました');
+      setSubmitting(false);
+    }
+  };
+  return (
+    <button
+      onClick={onClick}
+      disabled={submitting}
+      className={`w-full ${submitting ? 'bg-green-400' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200`}
+    >
+      {submitting ? '開始中…' : 'マッチング開始'}
+    </button>
   );
 }
