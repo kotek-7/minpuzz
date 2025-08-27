@@ -11,6 +11,15 @@ sequenceDiagram
 
     Note over U1,U2: game-start 受信直後からのゲーム操作（自チーム詳細・相手は進捗のみ）
 
+    %% 再接続/同期ずれ時のスナップショット再取得
+    alt 再接続 or 同期ずれ検知
+        U1->>F1: 再同期ボタン/自動検知
+        F1->>B: Socket emit: request-game-init {matchId,teamId,userId}
+        Note over B: 軽量レート制限（~500ms/ソケット）
+        B-->>F1: state-sync {board,pieces,score,timer?,matchStatus}
+        F1->>F1: ローカル状態を上書き（安全に復元）
+    end
+
     U1->>F1: ピースを掴む(pieceId)
     F1->>B: Socket emit: piece-grab
     B->>R: SET key lock:piece:{id} NX PX ttl （保持者=U1）
