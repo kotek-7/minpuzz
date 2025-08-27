@@ -28,6 +28,9 @@ export const redisKeys = {
   // Setでアクティブチーム番号重複防止
   teamNumbers: () => RedisSetKey("active:team:numbers"),
   
+  // ユーザー情報
+  userName: (userId: string) => RedisStringKey(`user:${userId}:name`),
+  
   // WebSocketセッション管理：複数サーバー間での共有セッション対応
   socketToUser: (socketId: string) => RedisStringKey(`socket:${socketId}:user`),
   userToSocket: (userId: string) => RedisStringKey(`user:${userId}:socket`),
