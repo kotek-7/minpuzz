@@ -1,15 +1,33 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getOrCreateUserId, getTeamId, getTeamNumber } from "@/lib/session/session";
+import { useMountTeamHandlers } from "@/features/team/handlers";
+import { useTeamState } from "@/features/team/store";
 
 export const TeamWaiting = () => {
-  const members = ["player1 さん", "player2 さん"];
+  const router = useRouter();
+  const teamId = getTeamId();
+  const teamNumber = getTeamNumber();
+  const userId = getOrCreateUserId();
+  const { members, memberCount } = useTeamState();
+
+  useEffect(() => {
+    if (!teamId || !userId) {
+      router.push("/");
+    }
+  }, [teamId, userId, router]);
+
+  useMountTeamHandlers({ teamId: teamId || "", userId });
+
+  const memberNames = members.map((m) => m.userId.slice(0, 6));
 
   return (
     <div
       className="flex flex-col justify-center items-center min-h-screen bg-white px-5"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
-      <button className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
+      <button onClick={() => router.push('/')} className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
       </button>
         <h2 className="text-[23px] text-black font-bold  mb-2 text-[#007f9e] text-center">メンバーを待機中…</h2>        
@@ -18,16 +36,17 @@ export const TeamWaiting = () => {
         
         <div className="flex justify-center mb-3 bg-[#e0f7fa] rounded-[8px] px-4 py-2 flex items-center">
           チーム番号：
-          <span className="text-[22px] font-bold">XXXXXX</span>
+          <span className="text-[22px] font-bold">{teamNumber || "-"}</span>
         </div>
 
         <div className="flex justify-between items-center mb-2">
           <p className="text-[20px] font-bold">メンバー</p>
-          <p>{members.length}人</p>
+          <p>{memberCount}人</p>
         </div>
         <div className="grid grid-cols-1 gap-4">
           {Array.from({ length: 4 }).map((_, i) => {
-            const isFilled = !!members[i];
+            const name = memberNames[i];
+            const isFilled = !!name;
             return (
               <div
                 key={i}
@@ -37,14 +56,15 @@ export const TeamWaiting = () => {
                     : "bg-gray-200 border border-dashed border-gray-500 text-gray-500"
                 }`}
               >
-                {members[i] || "待機中…"}
+                {name || "待機中…"}
               </div>
             );
           })}
         </div>
 
-
-        <button className="mt-5 px-8 py-3 bg-[#ffba39] font-bold rounded-xl shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-1 border-2 border-[#8a5a00]">
+        <button className="mt-5 px-8 py-3 bg-[#ffba39] font-bold rounded-xl shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-1 border-2 border-[#8a5a00]"
+          onClick={() => alert('次段でJOIN_MATCHING_QUEUEを実装予定です')}
+        >
           マッチング開始！
         </button>
       </div>
