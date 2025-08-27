@@ -8,6 +8,8 @@ export const PieceSchema = z.object({
   row: z.number().int().nonnegative().optional(),
   col: z.number().int().nonnegative().optional(),
   holder: z.string().min(1).optional(),
+  solRow: z.number().int().nonnegative().optional(),
+  solCol: z.number().int().nonnegative().optional(),
 }).refine(
   (p) => (p.placed ? p.row !== undefined && p.col !== undefined : true),
   { message: "placed=true の場合は row/col が必須" }
@@ -107,3 +109,9 @@ export const PiecePlacedPayloadSchema = z.object({
 
 export type PiecePlacePayload = z.infer<typeof PiecePlacePayloadSchema>;
 export type PiecePlacedPayload = z.infer<typeof PiecePlacedPayloadSchema>;
+
+export const PiecePlaceDeniedPayloadSchema = z.object({
+  pieceId: z.string().min(1),
+  reason: z.enum(['notFound', 'placed', 'notHolder', 'invalidCell']),
+});
+export type PiecePlaceDeniedPayload = z.infer<typeof PiecePlaceDeniedPayloadSchema>;

@@ -27,6 +27,7 @@ export const SOCKET_EVENTS = {
   // ゲーム中（M4 追加）
   PIECE_PLACE: 'piece-place',
   PIECE_PLACED: 'piece-placed',
+  PIECE_PLACE_DENIED: 'piece-place-denied',
   // 進捗/終了（public）
   PROGRESS_UPDATE: 'progress-update',
   GAME_END: 'game-end',
@@ -169,6 +170,12 @@ export type PiecePlacedPayload = {
   row: number;
   col: number;
   byUserId: string;
+};
+
+export type PiecePlaceDeniedReason = 'notFound' | 'placed' | 'notHolder' | 'invalidCell';
+export type PiecePlaceDeniedPayload = {
+  pieceId: string;
+  reason: PiecePlaceDeniedReason;
 };
 
 export type ProgressUpdatePayload = {

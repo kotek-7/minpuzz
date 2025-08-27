@@ -25,6 +25,7 @@ import { createGameStore } from "../config/di.js";
 import { createThrottler } from "./middleware/rateLimit.js";
 import { incrementTeamPlacedAndGetScore } from "../model/game/progress.js";
 import { completeMatchIfNeeded } from "../model/game/endService.js";
+import { seedPiecesIfEmpty } from "../model/game/seed.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   const store = createGameStore(redis);
@@ -262,6 +263,12 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       } catch (e) {
         console.error("Failed to join public room:", e);
       }
+      // 初期ピースのシード（未登録の場合）
+      try {
+        await seedPiecesIfEmpty(store, { matchId, rows: 6, cols: 6 });
+      } catch (e) {
+        console.error("Failed to seed pieces:", e);
+      }
       const recordResult = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
       if (recordResult.isErr()) {
         console.error(`recordPlayerConnected failed: ${recordResult.error}`);
@@ -387,8 +394,9 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
           });
         }
       } else {
-        // 失敗時は手元復元を促す
-        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_RELEASED, { pieceId: p.pieceId, x: p.x, y: p.y, byUserId: p.userId });
+        // 明示的に place-denied を返す
+        const reason = res.error;
+        socket.emit(SOCKET_EVENTS.PIECE_PLACE_DENIED, { pieceId: p.pieceId, reason });
       }
     } catch (e) {
       socket.emit('error', { message: 'invalid payload for piece-place' });
