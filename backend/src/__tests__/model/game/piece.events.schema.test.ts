@@ -1,4 +1,4 @@
-import { 
+import {
   PieceGrabPayloadSchema,
   PieceGrabbedPayloadSchema,
   PieceGrabDeniedPayloadSchema,
@@ -32,4 +32,3 @@ describe('M3 event payload schemas', () => {
     expect(() => PieceReleasedPayloadSchema.parse({ pieceId: 'p', x: 0, y: 0, byUserId: 'u' })).not.toThrow();
   });
 });
-

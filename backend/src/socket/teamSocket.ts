@@ -19,8 +19,13 @@ import * as Matching from "../model/matching/matching.js";
 import * as GameSession from "../model/game/session.js";
 import { redisKeys } from "../repository/redisKeys.js";
 import { buildInitPayload } from "../model/game/init.js";
+import * as PieceService from "../model/game/pieceService.js";
+import { SOCKET_EVENTS } from "./events.js";
+import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSchema } from "../model/game/schemas.js";
+import { createGameStore } from "../config/di.js";
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
+  const store = createGameStore(redis, 'redis');
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
     try {
       const { teamId, userId } = payload;
@@ -278,6 +283,56 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
     } catch (error) {
       console.error(`Error on JOIN_GAME:`, error);
       socket.emit("error", { message: "Failed to process game join" });
+    }
+  });
+
+  // M3: piece-grab
+  socket.on(SOCKET_EVENTS.PIECE_GRAB, async (payload) => {
+    try {
+      const p = PieceGrabPayloadSchema.parse(payload);
+      const res = await PieceService.grab(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, lockTtlSec: 5 });
+      if (res.isOk()) {
+        // チームへ通知
+        const grabbed = { pieceId: p.pieceId, byUserId: p.userId };
+        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_GRABBED, grabbed);
+      } else {
+        const reason = res.error === 'locked' ? 'locked' : res.error === 'placed' ? 'placed' : 'notFound';
+        socket.emit(SOCKET_EVENTS.PIECE_GRAB_DENIED, { pieceId: p.pieceId, reason });
+      }
+    } catch (e) {
+      socket.emit('error', { message: 'invalid payload for piece-grab' });
+    }
+  });
+
+  // M3: piece-move
+  socket.on(SOCKET_EVENTS.PIECE_MOVE, async (payload) => {
+    try {
+      const p = PieceMovePayloadSchema.parse(payload);
+      const res = await PieceService.move(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, x: p.x, y: p.y, ts: p.ts });
+      if (res.isOk()) {
+        const moved = { pieceId: p.pieceId, x: p.x, y: p.y, byUserId: p.userId, ts: p.ts };
+        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_MOVED, moved);
+      } else {
+        // 非ホルダーなどは無視（拒否）
+      }
+    } catch (e) {
+      socket.emit('error', { message: 'invalid payload for piece-move' });
+    }
+  });
+
+  // M3: piece-release
+  socket.on(SOCKET_EVENTS.PIECE_RELEASE, async (payload) => {
+    try {
+      const p = PieceReleasePayloadSchema.parse(payload);
+      const res = await PieceService.release(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, x: p.x, y: p.y });
+      if (res.isOk()) {
+        const released = { pieceId: p.pieceId, x: p.x, y: p.y, byUserId: p.userId };
+        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_RELEASED, released);
+      } else {
+        // 非ホルダー/配置済等は無視（拒否）
+      }
+    } catch (e) {
+      socket.emit('error', { message: 'invalid payload for piece-release' });
     }
   });
 }
