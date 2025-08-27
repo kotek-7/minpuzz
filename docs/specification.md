@@ -72,6 +72,7 @@ project-root/
 │       └── config.toml  # Supabase設定
 └── docs/
     ├── specification.md # 本仕様書
+    ├── implementation-plan.md # 実装計画（マイルストーン/U単位）
     ├── architecture.mmd # アーキテクチャ図
     ├── sequence-home-to-team.mmd # シーケンス図
     └── typescript/      # TypeScript開発ガイド

@@ -1,0 +1,26 @@
+%%{init: {'theme':'default', 'themeVariables': {'primaryColor': '#4f46e5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#3730a3', 'lineColor': '#374151', 'secondaryColor': '#e5e7eb', 'tertiaryColor': '#f3f4f6'}}}%%
+
+%% 同時掴み競合（相互排他）
+sequenceDiagram
+    participant U1 as ユーザー1
+    participant F1 as フロントエンド1
+    participant B as バックエンド
+    participant R as Redis
+    participant F2 as フロントエンド2
+    participant U2 as ユーザー2
+
+    U2->>F2: 掴む(pieceId)
+    F2->>B: piece-grab
+    par 同時に
+        U1->>F1: 掴む(pieceId)
+        F1->>B: piece-grab
+    end
+    B->>R: SETNX lock:piece:{id}
+    alt U2が先に成功
+        B->>F2: piece-grabbed
+        B->>F1: piece-grab-denied {reason:'locked'}
+    else U1が先に成功
+        B->>F1: piece-grabbed
+        B->>F2: piece-grab-denied {reason:'locked'}
+    end
+

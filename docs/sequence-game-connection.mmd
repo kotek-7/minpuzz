@@ -18,14 +18,16 @@ sequenceDiagram
         F2->>F2: ゲーム画面に遷移（接続待ち表示）
     end
 
-    Note over F1,F2: 各プレイヤーがゲームルームに接続登録
+    Note over F1,F2: 各プレイヤーがゲームルームに接続登録（参加直後に game-init を受信）
     par 両チームが並行接続
         U1->>F1: ゲーム接続開始
         F1->>B: Socket emit: join-game（matchId, teamId, userId）
+        B-->>F1: game-init（board, pieces, startedAt?, duration?）
         B->>R: SADD match:{matchId}:team:{teamId}:connected userId
     and
         U2->>F2: ゲーム接続開始
         F2->>B: Socket emit: join-game（matchId, teamId, userId）
+        B-->>F2: game-init（board, pieces, startedAt?, duration?）
         B->>R: SADD match:{matchId}:team:{teamId}:connected userId
     end
 
@@ -40,5 +42,4 @@ sequenceDiagram
         Note over U1,U2: 接続待ち表示を継続
     end
 
-    Note over U1,U2: game-start 受信後、リアルタイムジグソーパズル開始
-
+    Note over U1,U2: 次: docs/in-game/sequence-in-game.mmd（game-start以後のゲーム操作）

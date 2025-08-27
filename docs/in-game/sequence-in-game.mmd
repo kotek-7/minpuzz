@@ -1,0 +1,49 @@
+%%{init: {'theme':'default', 'themeVariables': {'primaryColor': '#4f46e5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#3730a3', 'lineColor': '#374151', 'secondaryColor': '#e5e7eb', 'tertiaryColor': '#f3f4f6'}}}%%
+
+%% ゲーム中（通常操作：掴む→動かす→設置→進捗更新）
+sequenceDiagram
+    participant U1 as ユーザー1
+    participant F1 as フロントエンド1
+    participant B as バックエンド
+    participant R as Redis
+    participant F2 as フロントエンド2
+    participant U2 as ユーザー2
+
+    Note over U1,U2: game-start 受信直後からのゲーム操作（自チーム詳細・相手は進捗のみ）
+
+    U1->>F1: ピースを掴む(pieceId)
+    F1->>B: Socket emit: piece-grab
+    B->>R: SETNX lock:piece:{id} = user1 (TTL)
+    alt ロック成功
+        R-->>B: OK
+        Note over B: チームルームにブロードキャスト
+        B->>F1: piece-grabbed {pieceId, byUserId}
+        B->>F2: piece-grabbed {pieceId, byUserId}
+    else 失敗（他ユーザが保持/配置済）
+        R-->>B: NG
+        B->>F1: piece-grab-denied {pieceId, reason}
+    end
+
+    loop ドラッグ（送信側スロットリング 15–30Hz）
+        U1->>F1: ピース移動(x,y)
+        F1->>B: Socket emit: piece-move
+        B->>R: 位置更新（holder一致を確認）
+        B->>F1: piece-moved {pieceId, x, y, byUserId}
+        B->>F2: piece-moved {pieceId, x, y, byUserId}
+    end
+
+    U1->>F1: 設置操作(候補 row,col)
+    F1->>B: Socket emit: piece-place
+    B->>R: 検証（holder, 正解, スナップ域）
+    alt 正解で設置
+        B->>R: 盤面確定・ロック解除・スコア+1
+        B->>F1: piece-placed {pieceId,row,col,byUserId}
+        B->>F2: piece-placed {pieceId,row,col,byUserId}
+        Note over B: 進捗は public に最小限を通知
+        B->>F1: progress-update {teamPlaced}
+        B->>F2: progress-update {teamPlaced}
+    else 不正/範囲外
+        B->>F1: piece-released {pieceId, x, y}
+    end
+
+    Note over U1,U2: 次: docs/sequence-game-end.mmd（ゲーム終了フロー）
