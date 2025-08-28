@@ -5,7 +5,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Trophy, Clock } from "lucide-react";
 
 // Button Component
@@ -86,6 +86,19 @@ const JigsawPuzzle = () => {
   const [selectedPieceId, setSelectedPieceId] = useState<number | null>(null);
   const [glowPieceId, setGlowPieceId] = useState<number | null>(null);
 
+  const placeSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    placeSoundRef.current = new Audio("/sounds/pieceSound.mp3");
+  }, []);
+
+  const selectSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    selectSoundRef.current = new Audio("/sounds/pieceSelect.mp3");
+    selectSoundRef.current.playbackRate = 2;
+  }, []);
+
   useEffect(() => {
     const style = document.createElement("style");
     style.innerHTML = `
@@ -108,7 +121,7 @@ const JigsawPuzzle = () => {
 
 
   const initializePieces = useCallback(() => {
-    const seasons = ["spring", "summer", "winter", "automn"];
+    const seasons = ["spring", "summer", "winter", "autumn"];
     const selectedSeason = seasons[Math.floor(Math.random() * seasons.length)];
     setCurrentSeason(selectedSeason);
 
@@ -158,10 +171,14 @@ const JigsawPuzzle = () => {
   }, [pieces]);
 
   const handleDrop = (position: number, pieceId: number) => {
-    setGlowPieceId(pieceId); // 発光対象を記録
+    setGlowPieceId(pieceId);
+    if (placeSoundRef.current) {
+      placeSoundRef.current.currentTime = 0;
+      placeSoundRef.current.play();
+    }
 
     setTimeout(() => {
-      setGlowPieceId(null); // 0.5秒後に消す
+      setGlowPieceId(null);
     }, 500);
 
     const newPieces = pieces.map((piece) => {
@@ -191,6 +208,10 @@ const JigsawPuzzle = () => {
 
   const handlePieceSelect = (pieceId: number) => {
     if (!isGameStarted) setIsGameStarted(true);
+    if (selectSoundRef.current) {
+    selectSoundRef.current.currentTime = 0;
+    selectSoundRef.current.play();
+  }
     setSelectedPieceId(pieceId);
   };
 
@@ -256,7 +277,7 @@ const JigsawPuzzle = () => {
                             transition: "transform 0.3s ease, box-shadow 0.3s ease",
                           }}
                         >
-                        
+
                           {isGlowing && (
                             <div
                               style={{
