@@ -49,7 +49,7 @@
   - ユニット: Payload スキーマの parse 成否（row/col 範囲、必須/任意、型）。
 - 完了基準: 旧ドラッグ系参照ゼロ、新スキーマ緑。
 
-## ユニット2: ストアIF再設計 + Redisキー [ ]
+## ユニット2: ストアIF再設計 + Redisキー [x]
 - 目的: ロック/座標移動を撤去し、pieces/score/timer/connections に集約。
 - 対象ファイル:
   - `backend/src/repository/gameStore.ts`
@@ -65,7 +65,7 @@
   - ユニット: pieces/score/timer/connections の往復・原子性（HINCR）。
 - 完了基準: 旧ロックIF/キー参照ゼロ、ユニット緑。
 
-## ユニット3: 初期データとスナップショット（5x5） [ ]
+## ユニット3: 初期データとスナップショット（5x5） [x]
 - 目的: 初期化/同期の土台を 5x5 に統一。
 - 対象ファイル:
   - `backend/src/model/game/seed.ts`
@@ -79,7 +79,7 @@
   - ユニット: 25ピース生成、スナップショット整合（空→部分配置→全配置）。
 - 完了基準: 5x5 固定の初期化/同期が緑。
 
-## ユニット4: 配置サービス（place）とガード [ ]
+## ユニット4: 配置サービス（place）とガード [x]
 - 目的: クリック配置のコア判定と保存を提供。
 - 対象ファイル:
   - `backend/src/model/game/pieceGuards.ts`
@@ -91,7 +91,7 @@
   - ユニット: 正常/エラー/競合（同一セル/同一ピース）で先着のみ成功。
 - 完了基準: 配置ドメインが単体で安定。
 
-## ユニット5: 進捗/終了（completed/timeout） [ ]
+## ユニット5: 進捗/終了（completed/timeout） [x]
 - 目的: スコア集計と終了判定の一回性。
 - 対象ファイル:
   - `backend/src/model/game/progress.ts`
@@ -105,7 +105,7 @@
   - ユニット: progress/incr、end（完成/同点/最大値）、timer（remaining/timeout）。
 - 完了基準: 進捗/終了/タイマー単体が緑。
 
-## ユニット6: ソケット（JOIN_GAME/REQUEST_GAME_INIT） [ ]
+## ユニット6: ソケット（JOIN_GAME/REQUEST_GAME_INIT） [x]
 - 目的: 初期化の往復とタイマー開始まで。
 - 対象ファイル:
   - `backend/src/socket/teamSocket.ts`
@@ -117,7 +117,7 @@
   - 統合: join→init/state-sync→start、public 参加、タイマー設定の検証。
 - 完了基準: 接続〜開始の往復が通る。
 
-## ユニット7: ソケット（PIECE_PLACE → placed/progress/end） [ ]
+## ユニット7: ソケット（PIECE_PLACE → placed/progress/end） [x]
 - 目的: 配置に伴う通知連鎖と終了の一回性。
 - 対象ファイル:
   - `backend/src/socket/teamSocket.ts`
@@ -128,7 +128,7 @@
   - 統合: 正常（placed→progress）、全配置で end、一斉クリックで先着のみ成功。
 - 完了基準: 配置〜進捗〜終了の往復が通る。
 
-## ユニット8: クリーンアップ（ドラッグ系撤去） [ ]
+## ユニット8: クリーンアップ（ドラッグ系撤去） [x]
 - 目的: 旧仕様参照の完全排除。
 - 対象作業:
   - ソース/テストから grab/move/release/lock 関連のコード・キー参照を削除。
@@ -137,7 +137,7 @@
   - 全テスト緑、旧参照ゼロを確認。
 - 完了基準: 旧仕様の痕跡なし。
 
-## ユニット9: リグレッション/安定化 [ ]
+## ユニット9: リグレッション/安定化 [x]
 - 目的: 実運用を想定した動作安定と監視性。
 - 作業:
   - `timer-sync` 周期送出の安定・二重起動防止（冪等）。
