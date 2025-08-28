@@ -5,6 +5,7 @@ import PuzzleBoard from "./PuzzleBoard";
 import PieceSelector from "./PieceSelector";
 import GameStatus from "./GameStatus";
 import OpponentProgress from "./OpponentProgress";
+import GameTimer from "./GameTimer";
 
 // Toast表示コンポーネント
 const ToastContainer = ({ toasts }: { toasts: Array<{id: string; message: string; type: 'error' | 'success' | 'info'}> }) => {
@@ -134,9 +135,18 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData }
         </div>
         
         {/* メインゲーム領域 */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* 左カラム: ゲーム状態と相手進捗 */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* 左カラム: タイマー */}
+          <div className="xl:col-span-1">
+            <GameTimer
+              remainingTimeMs={computedData.remainingTimeMs}
+              isStarted={gameState.started}
+              matchStatus={gameState.matchStatus}
+            />
+          </div>
+          
+          {/* 中央左: ゲーム状態と相手進捗 */}
+          <div className="xl:col-span-1 space-y-4">
             <GameStatus
               score={gameState.score}
               remainingTimeMs={computedData.remainingTimeMs}
@@ -153,7 +163,7 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData }
           </div>
           
           {/* 中央: パズル盤面 */}
-          <div className="flex flex-col items-center">
+          <div className="xl:col-span-1 flex flex-col items-center">
             <PuzzleBoard
               board={gameState.board}
               pieces={gameState.pieces}
@@ -164,7 +174,7 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData }
           </div>
           
           {/* 右カラム: ピース選択 */}
-          <div>
+          <div className="xl:col-span-1">
             <PieceSelector
               pieces={gameState.pieces}
               selectedPieceId={uiState.selectedPieceId}
