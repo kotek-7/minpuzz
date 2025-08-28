@@ -7,15 +7,17 @@ export async function seedPiecesIfEmpty(
   const list = await store.listPieces(params.matchId);
   if (list.isErr()) return;
   if (list.value.length > 0) return;
-  // 単純に rows*cols 分のピースを生成。solRow/solColを付与。
+  
+  // 全ピースを生成してからバッチ保存（原子性確保）
   const pieces = [] as { id: string; placed: boolean; solRow: number; solCol: number }[];
   for (let r = 0; r < params.rows; r++) {
     for (let c = 0; c < params.cols; c++) {
       const id = `p-${r}-${c}`;
       pieces.push({ id, placed: false, solRow: r, solCol: c });
+    }
   }
-  }
-  for (const p of pieces) {
-    await store.setPiece(params.matchId, p as any);
-  }
+  
+  // バッチ保存: 全ピースを一括で保存
+  const savePromises = pieces.map(p => store.setPiece(params.matchId, p as any));
+  await Promise.all(savePromises);
 }

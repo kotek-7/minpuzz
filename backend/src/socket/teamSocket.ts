@@ -268,6 +268,27 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       // 1. 先に初期ピースをシード（未登録の場合）
       try {
         await seedPiecesIfEmpty(store, { matchId, rows: 5, cols: 5 });
+        
+        // seed完了を確実にするため、完了確認
+        let retries = 0;
+        const maxRetries = 3;
+        let pieceCount = 0;
+        
+        while (retries < maxRetries) {
+          const listResult = await store.listPieces(matchId);
+          if (listResult.isOk() && listResult.value.length === 25) {
+            pieceCount = listResult.value.length;
+            break;
+          }
+          
+          retries++;
+          console.warn(`Seed completion check retry ${retries}/${maxRetries}, current pieces: ${listResult.isOk() ? listResult.value.length : 'error'}`);
+          
+          // 短時間待機後にリトライ
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        console.log(`Seed completion verified: ${pieceCount} pieces for match ${matchId}`);
       } catch (e) {
         console.error("Failed to seed pieces:", e);
       }
@@ -277,12 +298,18 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
         const timerRes = await store.getTimer(matchId);
         const timer = timerRes.isOk() ? timerRes.value : null;
         const initPayload = await buildInitPayloadWithPieces(store, { matchId, teamId, userId }, timer);
+        
+        // デバッグ情報追加
+        console.log(`Sending game-init to ${userId} with ${initPayload.pieces.length} pieces`);
         socket.emit(SOCKET_EVENTS.GAME_INIT, initPayload);
         
         // 3. 完全なstate-syncを本人へ送信（ズレ最小化）
         try {
           const snap = await buildStateSnapshot(store, matchId);
-          if (snap.isOk()) socket.emit(SOCKET_EVENTS.STATE_SYNC, snap.value);
+          if (snap.isOk()) {
+            console.log(`Sending state-sync to ${userId} with ${snap.value.pieces.length} pieces`);
+            socket.emit(SOCKET_EVENTS.STATE_SYNC, snap.value);
+          }
         } catch {}
       } catch (e) {
         console.error("Failed to emit game-init:", e);
