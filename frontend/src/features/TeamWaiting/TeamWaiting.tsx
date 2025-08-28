@@ -8,6 +8,7 @@ import { useTeamState } from "@/features/team/store";
 import { startMatching } from "@/lib/api/teams";
 import { getSocket } from "@/lib/socket/client";
 import { MATCHING_EVENTS } from "@/features/matching/events";
+import { useGameActions } from "@/features/game/store";
 
 export const TeamWaiting = () => {
   const router = useRouter();
@@ -16,6 +17,7 @@ export const TeamWaiting = () => {
   const userId = getOrCreateUserId();
   const { members, memberCount } = useTeamState();
   const [loading, setLoading] = React.useState(false);
+  const { setMatch } = useGameActions();
 
   useEffect(() => {
     if (!teamId || !userId) {
@@ -33,7 +35,10 @@ export const TeamWaiting = () => {
       if (p.teamId !== teamId) return;
       router.push("/matching");
     };
-    const onMatchFound = (_p: any) => {
+    const onMatchFound = (p: any) => {
+      if (p && typeof p.matchId === 'string') {
+        setMatch(p.matchId, p.self, p.partner);
+      }
       // navigate-to-matching と match-found がほぼ同時に来る場合に備え、
       // 待機画面でも直接ゲームへ遷移できるようにする
       router.push("/game");
@@ -50,10 +55,11 @@ export const TeamWaiting = () => {
 
   return (
     <div
-      className="flex flex-col justify-center items-center min-h-screen bg-white px-5"
+      className="relative flex flex-col justify-center items-center min-h-screen px-5 pb-20"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div className="absolute inset-0 bg-white -z-20" />
       <button onClick={() => router.push('/')} className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
-        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
       </button>
         <h2 className="text-[23px] text-black font-bold  mb-2 text-[#007f9e] text-center">メンバーを待機中…</h2>        
         <p className="text-center mb-5">メンバーの参加を待っています</p>
@@ -113,7 +119,7 @@ export const TeamWaiting = () => {
           3人 or 4人でゲーム開始可能です
       </p>
 
-      <svg viewBox="0 0 393 73" preserveAspectRatio="none" className="fixed bottom-0 w-screen h-17" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 393 73" preserveAspectRatio="none" className="fixed bottom-0 w-screen h-17 -z-10" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="paint0_linear_12_62" x1="196.5" y1="0" x2="196.5" y2="73" gradientUnits="userSpaceOnUse">
             <stop stopColor="#2EAFB9" />              <stop offset="1" stopColor="#27A2AA" />

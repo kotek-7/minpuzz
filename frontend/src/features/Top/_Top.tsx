@@ -1,15 +1,19 @@
 "use client";
 
 import React from "react";
+import { useEffect } from "react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { setNickname, getNickname } from "@/lib/session/session";
 import { Logo } from "./Logo";
+import { useRouter } from "next/navigation";
 
 export const Top = () => {
+  useEffect(() => {
+    if (sessionStorage.getItem("userId") === null) {
+      sessionStorage.setItem("userId", crypto.randomUUID());
+    }
+  }, []);
+  const [nickname, setNickname] = useState("");
   const router = useRouter();
-  const [nickname, setNick] = useState(getNickname() || "");
-
   return (
     <div
       className="h-screen w-full mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]"
@@ -30,7 +34,7 @@ export const Top = () => {
             id="nickname"
             placeholder="ニックネームを入力"
             value={nickname}
-            onChange={(e) => setNick(e.target.value)}
+            onChange={(e) => setNickname(e.target.value)}
             className="w-full p-[10px] text-[15px] rounded-[8px] border-2 border-[#007f9e]"
           />
         </div>
@@ -38,15 +42,12 @@ export const Top = () => {
         <div className="flex justify-center gap-[20px]">
           <button
             disabled={!nickname}
-            onClick={() => {
-              setNickname(nickname.trim());
-              router.push("/difficulty-selection");
-            }}
+            onClick={() => router.push("/difficulty-selection")}
             className={`flex flex-col items-center min-w-[150px] p-[10px] text-[15px] font-bold rounded-[12px] border-2 transition-all duration-150
               ${
-                !nickname.trim()
-                  ? "text-gray-500 bg-gray-300 border-gray-400"
-                  : "text-[#4a2c00] bg-[#ffba39] border-[#8a5a00] shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
+                nickname
+                  ? "text-[#4a2c00] bg-[#ffba39] border-[#8a5a00] shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
+                  : "text-gray-500 bg-gray-300 border-gray-400"
               }`}
           >
             <svg
@@ -63,10 +64,7 @@ export const Top = () => {
 
           <button
             disabled={!nickname}
-            onClick={() => {
-              setNickname(nickname.trim());
-              router.push("/team-number-input");
-            }}
+            onClick={() => router.push("/team-number-input")}
             className={`flex flex-col items-center min-w-[150px] p-[10px] text-[15px] font-bold rounded-[12px] border-2 transition-all duration-150
               ${
                 nickname

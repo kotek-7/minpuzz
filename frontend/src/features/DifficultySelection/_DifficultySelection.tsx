@@ -2,8 +2,6 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createTeam, addTeamMember, type Difficulty } from "@/lib/api/teams";
-import { getNickname, getOrCreateUserId, setTeamId, setTeamNumber } from "@/lib/session/session";
 // 難易度の種類と詳細を定数として定義します。
 const difficulties = [
   { level: "初級", description: "5ピースのパズル。初心者用。", value: "easy" },
@@ -12,15 +10,78 @@ const difficulties = [
   { level: "エクストラ", description: "50ピースのパズル。挑戦してみよう。", value: "extra" },
 ];
 
-// 難易度型は API の型を利用
+//難易度の型を定義します。これにより、型安全性が向上します。
+type Difficulty = "easy" | "normal" | "hard" | "extra";
 
 // DifficultySelection コンポーネントを定義します。
 export default function DifficultySelection() {
   //選択された難易度を管理する state を作成します。
   //初期値は null で、何も選択されていない状態を表します。
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null);
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const handleCreateTeam = async () => {
+    if (!selectedDifficulty) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const teamCreationResponse = await fetch(`${apiUrl}/v1/teams`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          createdBy: sessionStorage.getItem("userId"),
+          maxMembers: 4,
+        }),
+      });
+
+      if (!teamCreationResponse.ok) {
+        throw new Error(`APIエラー: ${teamCreationResponse.statusText}`);
+      }
+
+      const teamCreationData = await teamCreationResponse.json();
+
+      if (!teamCreationData.success || !teamCreationData.data) {
+        throw new Error(teamCreationData.message || "チームの作成に失敗しました");
+      }
+
+      const addMemberResponse = await fetch(`${apiUrl}/v1/teams/${teamCreationData.data.id}/members`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: sessionStorage.getItem("userId"),
+        }),
+      });
+
+      if (!addMemberResponse.ok) {
+        throw new Error(`メンバー追加失敗: ${addMemberResponse.statusText}`);
+      }
+
+      const addMemberData = await addMemberResponse.json();
+
+      if (!addMemberData.success || !addMemberData.data) {
+        throw new Error(addMemberData.message || "チームへの参加に失敗しました");
+      }
+
+      router.push(
+        `/team-waiting?teamId=${teamCreationData.data.id}&teamNumber=${teamCreationData.data.teamNumber}&difficulty=${selectedDifficulty}&memberId=${addMemberData.data.id}`,
+      );
+    } catch (err) {
+      console.error("チーム作成エラー:", err);
+      setError(err instanceof Error ? err.message : "チーム作成中にエラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div
       className="flex min-h-screen flex-col items-center bg-[#FFFFFF]"
@@ -29,7 +90,6 @@ export default function DifficultySelection() {
       {/* 戻るボタンのコンポーネントです。 */}
       <button
         className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1"
-        style={{ boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)" }}
         //押された時に戻る
         onClick={() => router.push("/")}
       >
@@ -41,6 +101,12 @@ export default function DifficultySelection() {
       {/* 画面のタイトルです。 */}
       <h1 className="my-8 text-4xl font-bold text-black">難易度を選択！</h1>
 
+      {error && (
+        <div className="mb-4 w-full max-w-sm rounded-lg border border-red-400 bg-red-100 p-4 text-center text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* 難易度ボタンのコンテナです。 */}
       <div className="flex w-full max-w-sm flex-col space-y-4 px-4">
         {/* difficulties 配列を map でループし、各難易度のボタンを動的に生成します。 */}
@@ -49,15 +115,13 @@ export default function DifficultySelection() {
             key={difficulty.value}
             //ボタンがクリックされたときに、state を更新します。
             onClick={() => setSelectedDifficulty(difficulty.value as Difficulty)}
-            className={`
-              w-full rounded-2xl p-4 text-center border-2 border-[#32acb4] 
+            className={`w-full rounded-2xl border-2 border-[#32acb4] p-4 text-center shadow-[0_2px_4px_0px_rgba(0,0,0,0.25)]
               ${
                 selectedDifficulty === difficulty.value
                   ? "bg-[#cdedef]" //選択時
-                  : "bg-white"
-              } // 非選択時
+                  : "bg-white" // 非選択時
+              } 
             `}
-            style={{ boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)" }}
           >
             <h2 className="text-2xl font-semibold text-black">{difficulty.level}</h2>
             <p className="mt-1 text-base text-black">{difficulty.description}</p>
@@ -67,57 +131,24 @@ export default function DifficultySelection() {
 
       {/* 「これでチームを作る！」ボタンです。 */}
       <button
-        className={`
-          mt-6 mb-3 w-2/3 max-w-sm rounded-2xl p-4 text-xl font-bold transition-all duration-150
+        onClick={handleCreateTeam}
+        disabled={!selectedDifficulty || loading}
+        className={`mt-6 mb-3 w-2/3 max-w-sm rounded-2xl p-4 text-xl font-bold transition-all duration-150
           ${
             selectedDifficulty
               ? "text-[#4a2c00] bg-[#ffba39] border-2 border-[#8a5a00] shadow-[0_8px_12px_0px_rgba(245,177,42,0.5)] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
               : "text-gray-500 bg-gray-300 border-2 border-gray-400"
-          }   
+          }
         `}
-        style={{
-          boxShadow: selectedDifficulty
-            ? "0px 8px 12px 0px rgba(245, 177, 42, 0.5)" // 選択時の影
-            : "0px 2px 4px 0px rgba(0, 0, 0, 0.25)", // 非選択時の影
-        }}
-        //難易度が選択されるまでボタンを無効化します。
-        disabled={!selectedDifficulty || loading}
-        // チーム作成ボタン
-        onClick={async () => {
-          if (!selectedDifficulty) return;
-          const nickname = getNickname() || "";
-          if (!nickname.trim()) {
-            alert("トップで名前を入力してください");
-            router.push("/");
-            return;
-          }
-
-
-          try {
-            setLoading(true);
-            const userId = getOrCreateUserId();
-            // 難易度は現状APIに影響しないため、maxMembers等に反映しない
-            const res = await createTeam({ createdBy: userId });
-            // 作成者自身もメンバーとして登録（他クライアントの初期フェッチで見えるように）
-            try {
-              await addTeamMember({ teamId: res.teamId, userId });
-            } catch (e) {
-              // 参加失敗は重大なので通知して中断
-              throw e;
-            }
-            setTeamId(res.teamId);
-            setTeamNumber(res.teamNumber);
-            // userIdは初期化しておく（副作用なく）
-            getOrCreateUserId();
-            router.push("/team-waiting");
-          } catch (e: any) {
-            console.error(e);
-            alert(e?.message || "チーム作成に失敗しました");
-            setLoading(false);
-          }
-        }}
       >
-        {loading ? "作成中..." : "これでチームを作る！"}
+        {loading ? (
+          <div className="flex items-center justify-center">
+            <div className="mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white"></div>
+            チーム作成中...
+          </div>
+        ) : (
+          "これでチームを作る！"
+        )}
       </button>
 
       {/* 下部の波型デザインのコンポーネントです。 */}
