@@ -14,7 +14,7 @@ export const TeamNumberInput = () => {
 
   return (
     <div
-      className="flex flex-col justify-center items-center min-h-screen bg-white px-5"
+      className="flex flex-col justify-center items-center min-h-screen bg-white px-5 isolate"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
     >
       <button onClick={() => router.push('/')} className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
@@ -39,7 +39,7 @@ export const TeamNumberInput = () => {
             id="joinNumber"
             placeholder="チーム番号を入力"
             value={joinNumber}
-            onChange={(e) => setJoinNumber(e.target.value)}
+            onChange={(e) => setJoinNumber(e.target.value.toUpperCase())}
             className="w-full p-2 rounded-lg border-2 border-[#007f9e]"
           />
         </div>
@@ -83,7 +83,7 @@ export const TeamNumberInput = () => {
         </button>
       </div>
 
-      <svg viewBox="0 0 393 73" preserveAspectRatio="none" className="fixed bottom-0 w-screen h-17" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 393 73" preserveAspectRatio="none" className="fixed bottom-0 w-screen h-17 -z-10" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="paint0_linear_12_62" x1="196.5" y1="0" x2="196.5" y2="73" gradientUnits="userSpaceOnUse">
             <stop stopColor="#2EAFB9" />              <stop offset="1" stopColor="#27A2AA" />
