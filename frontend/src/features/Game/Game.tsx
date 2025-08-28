@@ -21,47 +21,74 @@ class TimerManager {
   private serverSyncTime: number | null = null;
   private gameStartTime: number | null = null;
   private gameDuration: number | null = null;
-  
+
+  constructor() {
+    console.log('[TimerManager] Instantiated');
+  }
+
   // サーバー同期情報を更新
   updateFromSync(remainingMs: number) {
+    console.log(`[TimerManager] updateFromSync called with remainingMs: ${remainingMs}`);
     this.serverRemainingMs = remainingMs;
     this.serverSyncTime = Date.now();
+    this.logState('after updateFromSync');
   }
-  
+
   // ゲーム開始情報を更新
   updateGameInfo(startedAt: string, durationMs: number) {
+    console.log(`[TimerManager] updateGameInfo called with startedAt: ${startedAt}, durationMs: ${durationMs}`);
     this.gameStartTime = new Date(startedAt).getTime();
     this.gameDuration = durationMs;
+    this.logState('after updateGameInfo');
   }
-  
+
   // リセット
   reset() {
+    console.log('[TimerManager] reset called');
     this.serverRemainingMs = null;
     this.serverSyncTime = null;
     this.gameStartTime = null;
     this.gameDuration = null;
+    this.logState('after reset');
   }
-  
+
+  logState(context: string) {
+    console.log(`[TimerManager] State ${context}:`, {
+      serverRemainingMs: this.serverRemainingMs,
+      serverSyncTime: this.serverSyncTime,
+      gameStartTime: this.gameStartTime,
+      gameDuration: this.gameDuration,
+    });
+  }
+
   // 現在の残り時間を計算
   calculateRemainingMs(currentTime: number): number | null {
     // 優先度1: サーバー同期情報があれば使用（最も正確）
     if (this.serverRemainingMs !== null && this.serverSyncTime !== null) {
       const elapsedSinceSync = currentTime - this.serverSyncTime;
       const remaining = this.serverRemainingMs - elapsedSinceSync;
-      return Math.max(0, remaining);
+      const result = Math.max(0, remaining);
+      console.log(`[TimerManager] Calculated with sync info: ${result}ms remaining`);
+      return result;
     }
-    
+
     // 優先度2: ゲーム開始情報から計算（フォールバック）
     if (this.gameStartTime !== null && this.gameDuration !== null) {
       const elapsed = currentTime - this.gameStartTime;
       const remaining = this.gameDuration - elapsed;
-      return Math.max(0, remaining);
+      const result = Math.max(0, remaining);
+      console.log(`[TimerManager] Calculated with game info: ${result}ms remaining`);
+      return result;
     }
-    
+
     // 情報なし
+    console.log('[TimerManager] No timer info available, returning null');
     return null;
   }
 }
+
+// TimerManagerのインスタンスをシングルトンとしてコンポーネントの外で作成
+const timerManager = new TimerManager();
 
 // ゲーム接続フェーズの実装（sequence-game-connection.mmd）
 export default function Game() {
@@ -80,7 +107,6 @@ export default function Game() {
   const [toasts, setToasts] = useState<Array<{id: string; message: string; type: 'error' | 'success' | 'info'}>>([]);
   
   // 統一タイマー管理
-  const timerManager = useRef(new TimerManager()).current;
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   
   // Toast表示関数
@@ -112,9 +138,13 @@ export default function Game() {
     });
     
     // 残り時間計算 - 統一化されたロジック
+    console.log('[computedData] Calculating remaining time...', { started: gameState.started, ended: gameState.ended, currentTime });
     let remainingTimeMs: number | null = null;
     if (gameState.started && !gameState.ended) {
       remainingTimeMs = timerManager.calculateRemainingMs(currentTime);
+      console.log(`[computedData] Result: ${remainingTimeMs}`);
+    } else {
+      console.log('[computedData] Timer not active.');
     }
     
     // スコア計算
@@ -128,7 +158,7 @@ export default function Game() {
       myScore,
       opponentScore
     };
-  }, [gameState, currentTime, timerManager]);
+  }, [gameState, currentTime]);
 
   // アクションハンドラー群
   const handlePieceSelect = useCallback((pieceId: string) => {
@@ -295,6 +325,16 @@ export default function Game() {
     const handleGameStart = (payload: { matchId: string }) => {
       console.log('[Game] Received game-start:', payload);
       gameActions.markStarted();
+      
+      // game-start時点でのデフォルトタイマー設定（フォールバック）
+      const gameStartTime = Date.now();
+      const defaultDuration = 120000; // 2分
+      timerManager.updateGameInfo(new Date(gameStartTime).toISOString(), defaultDuration);
+      console.log('[Game] Set fallback timer on game-start:', gameStartTime, defaultDuration);
+
+      // タイマー情報を更新した直後にUIを再計算させる
+      setCurrentTime(gameStartTime);
+      
       showToast('ゲーム開始！', 'success');
     };
     
@@ -302,9 +342,16 @@ export default function Game() {
     const handleTimerSync = (payload: TimerSyncPayload) => {
       console.log('[Game] Received timer-sync:', payload);
       
-      // サーバー同期情報を保存
+      // サーバー同期情報を保存（優先度1）
       if (typeof payload.remainingMs === 'number') {
         timerManager.updateFromSync(payload.remainingMs);
+        console.log('[Game] Updated timer from sync:', payload.remainingMs);
+      }
+      
+      // ゲーム開始情報も更新（フォールバック用）
+      if (payload.startedAt && payload.durationMs) {
+        timerManager.updateGameInfo(payload.startedAt, payload.durationMs);
+        console.log('[Game] Updated timer game info:', payload.startedAt, payload.durationMs);
       }
       
       // ストア側にも通知（既存APIとの互換性）
@@ -414,7 +461,7 @@ export default function Game() {
       socket.off('game-error', handleGameError);
       console.log('[Game] Socket event handlers cleaned up');
     };
-  }, [matchId, teamId, userId, gameActions, router, showToast, timerManager]);
+  }, [matchId, teamId, userId, gameActions, router, showToast]);
   
   // セッション情報
   const sessionInfo = React.useMemo(() => {
