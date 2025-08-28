@@ -54,7 +54,7 @@ export function useMountTeamHandlers({ teamId, userId }: MountArgs) {
     upsertMember({ userId, socketId: (s as any).id, joinedAt: new Date().toISOString() });
 
     return () => {
-      s.emit(SOCKET_EVENTS.LEAVE_TEAM, { teamId, userId });
+      // 画面遷移では退室しない（マッチングや以降の通知に team ルームを使うため）
       s.off(SOCKET_EVENTS.MEMBER_JOINED, onJoined);
       s.off(SOCKET_EVENTS.MEMBER_LEFT, onLeft);
       s.off(SOCKET_EVENTS.TEAM_UPDATED, onUpdated);
