@@ -39,7 +39,7 @@ export const TeamNumberInput = () => {
             id="joinNumber"
             placeholder="チーム番号を入力"
             value={joinNumber}
-            onChange={(e) => setJoinNumber(e.target.value)}
+            onChange={(e) => setJoinNumber(e.target.value.toUpperCase())}
             className="w-full p-2 rounded-lg border-2 border-[#007f9e]"
           />
         </div>
