@@ -66,17 +66,36 @@ class GameStoreImpl {
   }) {
     const dict: Record<string, Piece> = {};
     for (const pc of p.pieces) dict[pc.id] = pc;
-    const mapping = this.buildDisplayMapping(Object.keys(dict));
+    
+    // 強化された防御ロジック: 不完全なピース配列を無視
+    const expectedPieceCount = 25; // 5x5盤面
+    const isIncomplete = p.pieces.length < expectedPieceCount;
+    const hasExistingComplete = Object.keys(this.snapshot.pieces).length >= expectedPieceCount;
+    
+    const shouldPreserveExistingPieces = (p.pieces.length === 0 || isIncomplete) && hasExistingComplete;
+    const finalPieces = shouldPreserveExistingPieces ? this.snapshot.pieces : dict;
+    
+    // デバッグログ強化
+    if (shouldPreserveExistingPieces) {
+      console.log(`[GameStore] Ignoring incomplete game-init (${p.pieces.length} pieces), preserving existing (${Object.keys(this.snapshot.pieces).length} pieces)`);
+    } else if (isIncomplete) {
+      console.warn(`[GameStore] Accepting incomplete game-init with ${p.pieces.length} pieces (no better existing state)`);
+    } else {
+      console.log(`[GameStore] Applying complete game-init with ${p.pieces.length} pieces`);
+    }
+    
+    const mapping = this.buildDisplayMapping(Object.keys(finalPieces));
     this.snapshot = {
       ...this.snapshot,
       matchId: p.matchId ?? this.snapshot.matchId,
       board: p.board,
-      pieces: dict,
+      pieces: finalPieces,
       timer: p.startedAt && p.durationMs ? { startedAt: p.startedAt, durationMs: p.durationMs } : null,
       matchStatus: "READY",
       _displayIndexToId: mapping.indexToId,
       _idToDisplayIndex: mapping.idToIndex,
     };
+    
     this.emit();
   }
   applyStateSync(p: {
@@ -88,18 +107,44 @@ class GameStoreImpl {
   }) {
     const dict: Record<string, Piece> = {};
     for (const pc of p.pieces) dict[pc.id] = pc;
+    
+    // 強化された防御ロジック: 不完全なstate-syncを無視
+    const expectedPieceCount = 25; // 5x5盤面
+    const isIncomplete = p.pieces.length < expectedPieceCount;
+    const hasExistingComplete = Object.keys(this.snapshot.pieces).length >= expectedPieceCount;
+    
+    const shouldPreserveExistingPieces = isIncomplete && hasExistingComplete;
+    const finalPieces = shouldPreserveExistingPieces ? this.snapshot.pieces : dict;
+    
+    // デバッグログ強化
+    if (shouldPreserveExistingPieces) {
+      console.log(`[GameStore] Ignoring incomplete state-sync (${p.pieces.length} pieces), preserving existing (${Object.keys(this.snapshot.pieces).length} pieces)`);
+    } else if (isIncomplete) {
+      console.warn(`[GameStore] Accepting incomplete state-sync with ${p.pieces.length} pieces (no better existing state)`);
+    } else {
+      console.log(`[GameStore] Applying complete state-sync with ${p.pieces.length} pieces`);
+    }
+    
     // 既存マッピングがなければ生成。既にある場合は維持（表示の安定性を優先）
     const hasMapping = this.snapshot._displayIndexToId && Object.keys(this.snapshot._displayIndexToId!).length > 0;
     const mapping = hasMapping
       ? { indexToId: this.snapshot._displayIndexToId!, idToIndex: this.snapshot._idToDisplayIndex! }
-      : this.buildDisplayMapping(Object.keys(dict));
+      : this.buildDisplayMapping(Object.keys(finalPieces));
+      
+    // matchStatusの優先度ロジック：startedがtrueの場合はIN_GAMEを維持
+    let finalMatchStatus = (p.matchStatus as GameSnapshot["matchStatus"]) || this.snapshot.matchStatus;
+    if (this.snapshot.started && finalMatchStatus !== "COMPLETED") {
+      finalMatchStatus = "IN_GAME";
+      console.log(`[GameStore] Preserving IN_GAME status (received ${p.matchStatus})`);
+    }
+    
     this.snapshot = {
       ...this.snapshot,
       board: p.board,
-      pieces: dict,
+      pieces: finalPieces,
       score: { placedByTeam: p.score?.placedByTeam ?? {} },
       timer: p.timer ?? null,
-      matchStatus: (p.matchStatus as GameSnapshot["matchStatus"]) || this.snapshot.matchStatus,
+      matchStatus: finalMatchStatus,
       _displayIndexToId: mapping.indexToId,
       _idToDisplayIndex: mapping.idToIndex,
     };

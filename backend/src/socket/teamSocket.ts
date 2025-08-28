@@ -323,6 +323,15 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       if (recordResult.value.allConnected) {
         const nowIso = new Date().toISOString();
         const gameStartPayload: GameStartPayload = { matchId, timestamp: nowIso };
+        
+        // マッチステータスをIN_GAMEに更新
+        const currentMatch = await store.getMatch(matchId);
+        if (currentMatch.isOk() && currentMatch.value) {
+          const updatedMatch = { ...currentMatch.value, status: 'IN_GAME' as const };
+          await store.setMatch(matchId, updatedMatch);
+          console.log(`Match ${matchId} status updated to IN_GAME`);
+        }
+        
         // M5: タイマー設定（デフォルト 120s）
         const DEFAULT_DURATION_MS = 120_000;
         const setTimerRes = await store.setTimer(matchId, { startedAt: nowIso, durationMs: DEFAULT_DURATION_MS });
