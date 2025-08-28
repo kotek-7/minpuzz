@@ -286,7 +286,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       }
       // 初期ピースのシード（未登録の場合）
       try {
-        await seedPiecesIfEmpty(store, { matchId, rows: 6, cols: 6 });
+        await seedPiecesIfEmpty(store, { matchId, rows: 5, cols: 5 });
       } catch (e) {
         console.error("Failed to seed pieces:", e);
       }

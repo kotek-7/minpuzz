@@ -38,7 +38,7 @@ describe('teamSocket: request-game-init -> state-sync', () => {
     if (sync) {
       expect(sync.payload.pieces.length).toBe(1);
       expect(sync.payload.score.placedByTeam['TA']).toBe(1);
-      expect(sync.payload.board).toEqual({ rows: 6, cols: 6 });
+      expect(sync.payload.board).toEqual({ rows: 5, cols: 5 });
     }
   });
 
