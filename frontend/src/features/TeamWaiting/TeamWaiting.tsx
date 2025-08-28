@@ -8,7 +8,7 @@ import { useTeamState } from "@/features/team/store";
 import { startMatching } from "@/lib/api/teams";
 import { getSocket } from "@/lib/socket/client";
 import { MATCHING_EVENTS } from "@/features/matching/events";
-import { useGameActions } from "@/features/game/store";
+import { useGameActions } from "@/features/Game/store";
 
 export const TeamWaiting = () => {
   const router = useRouter();
