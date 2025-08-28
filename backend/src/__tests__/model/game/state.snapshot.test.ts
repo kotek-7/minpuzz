@@ -9,7 +9,7 @@ describe('buildStateSnapshot', () => {
     const res = await buildStateSnapshot(store, matchId);
     expect(res.isOk()).toBe(true);
     if (res.isOk()) {
-      expect(res.value.board).toEqual({ rows: 6, cols: 6 });
+      expect(res.value.board).toEqual({ rows: 5, cols: 5 });
       expect(Array.isArray(res.value.pieces)).toBe(true);
       expect(res.value.score).toEqual({ placedByTeam: {} });
       expect(res.value.timer).toBeNull();
@@ -36,4 +36,3 @@ describe('buildStateSnapshot', () => {
     }
   });
 });
-

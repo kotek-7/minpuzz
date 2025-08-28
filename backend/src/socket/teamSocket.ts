@@ -327,23 +327,6 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
     }
   });
 
-  // M3: piece-grab
-  socket.on(SOCKET_EVENTS.PIECE_GRAB, async (payload) => {
-    try {
-      const p = PieceGrabPayloadSchema.parse(payload);
-      const res = await PieceService.grab(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, lockTtlSec: 5 });
-      if (res.isOk()) {
-        // チームへ通知
-        const grabbed = { pieceId: p.pieceId, byUserId: p.userId };
-        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_GRABBED, grabbed);
-      } else {
-        const reason = res.error === 'locked' ? 'locked' : res.error === 'placed' ? 'placed' : 'notFound';
-        socket.emit(SOCKET_EVENTS.PIECE_GRAB_DENIED, { pieceId: p.pieceId, reason });
-      }
-    } catch (e) {
-      socket.emit('error', { message: 'invalid payload for piece-grab' });
-    }
-  });
 
   // M6: request-game-init -> state-sync（本人宛に最新スナップショット）
   socket.on(SOCKET_EVENTS.REQUEST_GAME_INIT, async (payload) => {
