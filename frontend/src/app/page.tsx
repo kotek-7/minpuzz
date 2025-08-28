@@ -1,5 +1,7 @@
-import Game from "@/features/Game/Game";
+import { Top } from "@/features/Top/Top";
 
-export default function Home() {
-  return <Game />;
+export default function Page() {
+  return (
+    <Top />
+  );
 }
