@@ -107,7 +107,6 @@ const JigsawPuzzle = () => {
   }, []);
 
 
-
   const initializePieces = useCallback(() => {
     const seasons = ["spring", "summer", "winter", "automn"];
     const selectedSeason = seasons[Math.floor(Math.random() * seasons.length)];
