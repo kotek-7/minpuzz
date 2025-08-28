@@ -8,8 +8,6 @@ export const GameInitPayloadSchema = z.object({
   pieces: z.array(
     z.object({
       id: z.string(),
-      x: z.number(),
-      y: z.number(),
       placed: z.boolean(),
       row: z.number().int().nonnegative().optional(),
       col: z.number().int().nonnegative().optional(),

@@ -14,13 +14,13 @@ describe('endService', () => {
       status: 'IN_GAME',
       createdAt: new Date().toISOString(),
     });
-    await store.setPiece(matchId, { id: 'p1', x: 0, y: 0, placed: true, row: 0, col: 0 });
-    await store.setPiece(matchId, { id: 'p2', x: 0, y: 0, placed: false });
+    await store.setPiece(matchId, { id: 'p1', placed: true, row: 0, col: 0 } as any);
+    await store.setPiece(matchId, { id: 'p2', placed: false } as any);
 
     const all1 = await checkAllPlaced(store, matchId);
     expect(all1.isOk() && all1.value).toBe(false);
 
-    await store.setPiece(matchId, { id: 'p2', x: 1, y: 1, placed: true, row: 0, col: 1 });
+    await store.setPiece(matchId, { id: 'p2', placed: true, row: 0, col: 1 } as any);
     const all2 = await checkAllPlaced(store, matchId);
     expect(all2.isOk() && all2.value).toBe(true);
 
@@ -31,4 +31,3 @@ describe('endService', () => {
     expect(c2.isOk() && c2.value.completed).toBe(false); // idempotent
   });
 });
-

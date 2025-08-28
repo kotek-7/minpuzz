@@ -7,7 +7,7 @@ describe('M6 state sync event schemas', () => {
   });
 
   test('state-sync payload schema accepts valid shape', () => {
-    const piece = PieceSchema.parse({ id: 'p', x: 0, y: 0, placed: false });
+    const piece = PieceSchema.parse({ id: 'p', placed: false });
     const score = ScoreSchema.parse({ placedByTeam: { T: 1 } });
     const timer = TimerSchema.parse({ startedAt: new Date().toISOString(), durationMs: 60000 });
     expect(() => StateSyncPayloadSchema.parse({

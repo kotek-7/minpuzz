@@ -1,7 +1,5 @@
 export type Piece = {
   id: string;
-  x: number;
-  y: number;
   placed: boolean;
   row?: number;
   col?: number;

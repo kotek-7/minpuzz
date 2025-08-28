@@ -8,8 +8,8 @@ describe('end (click)', () => {
     const store = new RedisGameStore(new MockRedisClient() as any);
     const matchId = 'm-end-click-1';
     await store.setMatch(matchId, { id: matchId, teamA: { teamId: 'TA', memberCount: 1 }, teamB: { teamId: 'TB', memberCount: 1 }, status: 'IN_GAME', createdAt: new Date().toISOString() });
-    await store.setPiece(matchId, { id: 'p1', x: 0, y: 0, placed: true, row: 0, col: 0 } as any);
-    await store.setPiece(matchId, { id: 'p2', x: 0, y: 0, placed: true, row: 0, col: 1 } as any);
+    await store.setPiece(matchId, { id: 'p1', placed: true, row: 0, col: 0 } as any);
+    await store.setPiece(matchId, { id: 'p2', placed: true, row: 0, col: 1 } as any);
     const all = await checkAllPlaced(store as any, matchId);
     expect(all.isOk() && all.value).toBe(true);
     const done = await completeMatchIfNeeded(store as any, matchId);
@@ -18,4 +18,3 @@ describe('end (click)', () => {
     expect(again.isOk() && again.value.completed === false).toBe(true);
   });
 });
-

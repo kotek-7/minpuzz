@@ -29,9 +29,9 @@ describe('Scenario (click): place -> progress', () => {
     const matchId = 'm-scn-1';
     const teamA = 'TA';
     await store.setMatch(matchId, { id: matchId, teamA: { teamId: teamA, memberCount: 1 }, teamB: { teamId: 'TB', memberCount: 1 }, status: 'IN_GAME', createdAt: new Date().toISOString() });
-    await store.setPiece(matchId, { id: 'p1', x: 0, y: 0, placed: false } as any);
+    await store.setPiece(matchId, { id: 'p1', placed: false } as any);
 
-    await handlers[SOCKET_EVENTS.PIECE_PLACE]({ matchId, teamId: teamA, userId: 'u1', pieceId: 'p1', row: 0, col: 0, x: 0, y: 0 });
+    await handlers[SOCKET_EVENTS.PIECE_PLACE]({ matchId, teamId: teamA, userId: 'u1', pieceId: 'p1', row: 0, col: 0 });
 
     const placed = calls.find(c => c.event === SOCKET_EVENTS.PIECE_PLACED);
     const progress = calls.find(c => c.event === SOCKET_EVENTS.PROGRESS_UPDATE);
@@ -39,4 +39,3 @@ describe('Scenario (click): place -> progress', () => {
     expect(progress).toBeTruthy();
   });
 });
-

@@ -28,7 +28,7 @@ describe('teamSocket: request-game-init -> state-sync', () => {
     const store = new RedisGameStore(redis as any);
     const matchId = 'm-state-1';
     await store.setMatch(matchId, { id: matchId, teamA: { teamId: 'TA', memberCount: 1 }, teamB: { teamId: 'TB', memberCount: 1 }, status: 'IN_GAME', createdAt: new Date().toISOString() });
-    await store.setPiece(matchId, { id: 'p1', x: 1, y: 2, placed: false });
+    await store.setPiece(matchId, { id: 'p1', placed: false } as any);
     await store.incrTeamPlaced(matchId, 'TA');
 
     await handlers[SOCKET_EVENTS.REQUEST_GAME_INIT]({ matchId, teamId: 'TA', userId: 'u1' });
@@ -66,7 +66,7 @@ describe('teamSocket: request-game-init -> state-sync', () => {
     const store = new RedisGameStore(redis as any);
     const matchId = 'm-state-join';
     await store.setMatch(matchId, { id: matchId, teamA: { teamId: 'TA', memberCount: 1 }, teamB: { teamId: 'TB', memberCount: 1 }, status: 'PREPARING', createdAt: new Date().toISOString() });
-    await store.setPiece(matchId, { id: 'p1', x: 1, y: 2, placed: false });
+    await store.setPiece(matchId, { id: 'p1', placed: false } as any);
 
     await handlers[SOCKET_EVENTS.JOIN_GAME]({ matchId, teamId: 'TA', userId: 'u1' });
 

@@ -29,9 +29,9 @@ describe('teamSocket (click): PIECE_PLACE → placed/progress/end', () => {
     const matchId = 'm-place-1';
     const teamId = 'TA';
     await store.setMatch(matchId, { id: matchId, teamA: { teamId, memberCount: 1 }, teamB: { teamId: 'TB', memberCount: 1 }, status: 'IN_GAME', createdAt: new Date().toISOString() });
-    await store.setPiece(matchId, { id: 'p1', x: 0, y: 0, placed: false } as any);
+    await store.setPiece(matchId, { id: 'p1', placed: false } as any);
 
-    await handlers[SOCKET_EVENTS.PIECE_PLACE]({ matchId, teamId, userId: 'u1', pieceId: 'p1', row: 0, col: 0, x: 0, y: 0 });
+    await handlers[SOCKET_EVENTS.PIECE_PLACE]({ matchId, teamId, userId: 'u1', pieceId: 'p1', row: 0, col: 0 });
 
     const placed = calls.find(c => c.event === SOCKET_EVENTS.PIECE_PLACED);
     const progress = calls.find(c => c.event === SOCKET_EVENTS.PROGRESS_UPDATE);
@@ -71,10 +71,10 @@ describe('teamSocket (click): PIECE_PLACE → placed/progress/end', () => {
     const store = new RedisGameStore(redis as any);
     const matchId = 'm-place-2';
     await store.setMatch(matchId, { id: matchId, teamA: { teamId: 'TA', memberCount: 1 }, teamB: { teamId: 'TB', memberCount: 1 }, status: 'IN_GAME', createdAt: new Date().toISOString() });
-    await store.setPiece(matchId, { id: 'p2', x: 0, y: 0, placed: false } as any);
-    await store.setPiece(matchId, { id: 'pX', x: 0, y: 0, placed: true, row: 0, col: 0 } as any);
+    await store.setPiece(matchId, { id: 'p2', placed: false } as any);
+    await store.setPiece(matchId, { id: 'pX', placed: true, row: 0, col: 0 } as any);
 
-    await handlers[SOCKET_EVENTS.PIECE_PLACE]({ matchId, teamId: 'TA', userId: 'u1', pieceId: 'p2', row: 0, col: 0, x: 0, y: 0 });
+    await handlers[SOCKET_EVENTS.PIECE_PLACE]({ matchId, teamId: 'TA', userId: 'u1', pieceId: 'p2', row: 0, col: 0 });
 
     const denied = calls.find(c => c.event === SOCKET_EVENTS.PIECE_PLACE_DENIED && c.room === 'socket:s-place-2');
     expect(denied).toBeTruthy();
@@ -84,4 +84,3 @@ describe('teamSocket (click): PIECE_PLACE → placed/progress/end', () => {
     }
   });
 });
-

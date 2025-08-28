@@ -2,8 +2,6 @@ import { z } from "zod";
 
 export const PieceSchema = z.object({
   id: z.string().min(1),
-  x: z.number().finite(),
-  y: z.number().finite(),
   placed: z.boolean(),
   row: z.number().int().nonnegative().optional(),
   col: z.number().int().nonnegative().optional(),
@@ -38,8 +36,6 @@ export const PiecePlacePayloadSchema = z.object({
   // クリック配置: 盤面は5x5固定のため 0..4 に制限
   row: z.number().int().min(0).max(4),
   col: z.number().int().min(0).max(4),
-  x: z.number().finite(),
-  y: z.number().finite(),
 });
 
 export const PiecePlacedPayloadSchema = z.object({

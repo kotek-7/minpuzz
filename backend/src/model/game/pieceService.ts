@@ -7,7 +7,7 @@ export type PlaceError = 'notFound' | 'placed' | 'invalidCell' | 'io';
 
 export async function place(
   store: GameStore,
-  params: { matchId: string; pieceId: string; userId: string; row: number; col: number; x: number; y: number }
+  params: { matchId: string; pieceId: string; userId: string; row: number; col: number }
 ): Promise<Result<Piece, PlaceError>> {
   // クリック配置版: holder/lock なし、セル占有チェックのみ
   const pieceRes = await store.getPiece(params.matchId, params.pieceId);

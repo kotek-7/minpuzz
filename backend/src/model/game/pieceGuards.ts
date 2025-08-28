@@ -13,7 +13,7 @@ export function ensureNotPlaced(piece: Piece): Result<Piece, GuardError> {
   return ok(piece);
 }
 
-export function withPosition(piece: Piece, x: number, y: number): Piece { return { ...piece, x, y }; }
+// クリック配置では自由座標を保持しないため位置更新は不要
 
 export function canPlace(
   piece: Piece | null,
