@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ok } from "neverthrow";
+import type { GameStore } from "../../repository/gameStore.js";
 
 export const GameInitPayloadSchema = z.object({
   matchId: z.string(),
@@ -19,7 +21,7 @@ export const GameInitPayloadSchema = z.object({
 
 export type GameInitPayload = z.infer<typeof GameInitPayloadSchema>;
 
-// M1: 仕様に基づくダミー初期化データ（固定の5x5、ピースなし）
+// M1: 仕様に基づくダミー初期化データ（固定の5x5、ピースなし）- 後方互換性のために残す
 export function buildInitPayload(params: { matchId: string; teamId: string; userId: string }): GameInitPayload {
   const payload: GameInitPayload = {
     matchId: params.matchId,
@@ -35,7 +37,7 @@ export function buildInitPayload(params: { matchId: string; teamId: string; user
   return payload;
 }
 
-// M5: タイマー情報を反映した初期化データ
+// M5: タイマー情報を反映した初期化データ（後方互換性のために残す）
 export function buildInitPayloadWithTimer(
   params: { matchId: string; teamId: string; userId: string },
   timer: { startedAt: string; durationMs: number } | null
@@ -49,6 +51,36 @@ export function buildInitPayloadWithTimer(
     startedAt: timer ? timer.startedAt : null,
     durationMs: timer ? timer.durationMs : null,
   };
+  GameInitPayloadSchema.parse(payload);
+  return payload;
+}
+
+// 新規: 実際のピース情報を含む初期化データ
+export async function buildInitPayloadWithPieces(
+  store: GameStore,
+  params: { matchId: string; teamId: string; userId: string },
+  timer: { startedAt: string; durationMs: number } | null = null
+): Promise<GameInitPayload> {
+  // ストアからピース情報を取得
+  const piecesResult = await store.listPieces(params.matchId);
+  const pieces = piecesResult.isOk() ? piecesResult.value : [];
+
+  const payload: GameInitPayload = {
+    matchId: params.matchId,
+    teamId: params.teamId,
+    userId: params.userId,
+    board: { rows: 5, cols: 5 },
+    pieces: pieces.map(p => ({
+      id: p.id,
+      placed: p.placed || false,
+      row: p.row,
+      col: p.col,
+    })),
+    startedAt: timer ? timer.startedAt : null,
+    durationMs: timer ? timer.durationMs : null,
+  };
+  
+  // 型安全チェック（開発時の保険）
   GameInitPayloadSchema.parse(payload);
   return payload;
 }

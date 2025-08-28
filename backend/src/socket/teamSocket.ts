@@ -18,7 +18,7 @@ import * as TeamModel from "../model/team/team.js";
 import * as Matching from "../model/matching/matching.js";
 import * as GameSession from "../model/game/session.js";
 import { redisKeys } from "../repository/redisKeys.js";
-import { buildInitPayload, buildInitPayloadWithTimer } from "../model/game/init.js";
+import { buildInitPayload, buildInitPayloadWithTimer, buildInitPayloadWithPieces } from "../model/game/init.js";
 import * as PieceService from "../model/game/pieceService.js";
 import { PiecePlacePayloadSchema, RequestGameInitPayloadSchema } from "../model/game/schemas.js";
 import { createGameStore } from "../config/di.js";
@@ -257,33 +257,35 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
   socket.on(SOCKET_EVENTS.JOIN_GAME, async (payload: JoinGamePayload) => {
     try {
       const { matchId, teamId, userId } = payload;
-      // 参加直後に game-init を参加者へ返す（M5: timerを反映）
-      try {
-        let initPayload = buildInitPayload({ matchId, teamId, userId });
-        const timerRes = await store.getTimer(matchId);
-        if (timerRes.isOk()) {
-          initPayload = buildInitPayloadWithTimer({ matchId, teamId, userId }, timerRes.value);
-        }
-        socket.emit(SOCKET_EVENTS.GAME_INIT, initPayload);
-        // 任意強化: 即時のstate-syncを本人へ（ズレ最小化）
-        try {
-          const snap = await buildStateSnapshot(store, matchId);
-          if (snap.isOk()) socket.emit(SOCKET_EVENTS.STATE_SYNC, snap.value);
-        } catch {}
-      } catch (e) {
-        console.error("Failed to emit game-init:", e);
-      }
+      
       // publicルームにも参加（進捗/終了の受信のため）
       try {
         await socket.join(`room:match:${matchId}:public`);
       } catch (e) {
         console.error("Failed to join public room:", e);
       }
-      // 初期ピースのシード（未登録の場合）
+      
+      // 1. 先に初期ピースをシード（未登録の場合）
       try {
         await seedPiecesIfEmpty(store, { matchId, rows: 5, cols: 5 });
       } catch (e) {
         console.error("Failed to seed pieces:", e);
+      }
+      
+      // 2. seedされたピースを含むgame-initを送信（M5: timerを反映）
+      try {
+        const timerRes = await store.getTimer(matchId);
+        const timer = timerRes.isOk() ? timerRes.value : null;
+        const initPayload = await buildInitPayloadWithPieces(store, { matchId, teamId, userId }, timer);
+        socket.emit(SOCKET_EVENTS.GAME_INIT, initPayload);
+        
+        // 3. 完全なstate-syncを本人へ送信（ズレ最小化）
+        try {
+          const snap = await buildStateSnapshot(store, matchId);
+          if (snap.isOk()) socket.emit(SOCKET_EVENTS.STATE_SYNC, snap.value);
+        } catch {}
+      } catch (e) {
+        console.error("Failed to emit game-init:", e);
       }
       const recordResult = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
       if (recordResult.isErr()) {
