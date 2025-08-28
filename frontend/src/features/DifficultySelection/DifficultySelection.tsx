@@ -23,7 +23,7 @@ export default function DifficultySelection() {
   const [loading, setLoading] = useState(false);
   return (
     <div
-      className="flex min-h-screen flex-col items-center bg-[#FFFFFF]"
+      className="flex min-h-screen flex-col items-center bg-white isolate"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
     >
       {/* 戻るボタンのコンポーネントです。 */}
@@ -122,7 +122,7 @@ export default function DifficultySelection() {
 
       {/* 下部の波型デザインのコンポーネントです。 */}
       <svg
-        className="mt-auto mt-10 w-full h-[73px]"
+        className="fixed bottom-0 w-screen h-17 -z-1"
         fill="none"
         viewBox="0 0 393 73"
         preserveAspectRatio="none"
