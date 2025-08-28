@@ -6,7 +6,7 @@
   - 追加: `PIECE_PLACE`, `PIECE_PLACED`, `PIECE_PLACE_DENIED`, `PROGRESS_UPDATE`, `TIMER_SYNC`, `GAME_END`
 - [x] ユニット2: ゲームストアAPIの拡張（features/game/store.ts）
   - 追加: `markPlaced`, `setScore`, `applyTimer`, `finish(…)+ended`
-- [ ] ユニット3: 受信ハンドラのマウント（Game.tsx or handlers.ts）
+- [x] ユニット3: 受信ハンドラのマウント（Game.tsx or handlers.ts）
   - on `PIECE_PLACED/PIECE_PLACE_DENIED/PROGRESS_UPDATE/TIMER_SYNC/GAME_END`
 - [ ] ユニット4: サーバ pieceId マッピングの用意
   - `game-init/state-sync` から id対応を保持（UIの選択→serverId へ変換）
