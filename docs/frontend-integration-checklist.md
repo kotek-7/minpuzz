@@ -8,7 +8,7 @@
   - 追加: `markPlaced`, `setScore`, `applyTimer`, `finish(…)+ended`
 - [x] ユニット3: 受信ハンドラのマウント（Game.tsx or handlers.ts）
   - on `PIECE_PLACED/PIECE_PLACE_DENIED/PROGRESS_UPDATE/TIMER_SYNC/GAME_END`
-- [ ] ユニット4: サーバ pieceId マッピングの用意
+- [x] ユニット4: サーバ pieceId マッピングの用意
   - `game-init/state-sync` から id対応を保持（UIの選択→serverId へ変換）
 - [ ] ユニット5: 送信導線の実装（Puzzle→emit）
   - セルクリックで `emit(PIECE_PLACE, { matchId, teamId, userId, pieceId, row, col })`

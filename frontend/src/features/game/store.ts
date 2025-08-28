@@ -16,6 +16,9 @@ type GameSnapshot = {
   matchStatus: "PREPARING" | "READY" | "IN_GAME" | "COMPLETED" | "UNKNOWN";
   started: boolean;
   ended?: boolean;
+  // UI用: 表示インデックス(1..N) と server pieceId の対応表
+  _displayIndexToId?: Record<number, string>;
+  _idToDisplayIndex?: Record<string, number>;
 };
 
 class GameStoreImpl {
@@ -31,6 +34,8 @@ class GameStoreImpl {
     matchStatus: "PREPARING",
     started: false,
     ended: false,
+    _displayIndexToId: {},
+    _idToDisplayIndex: {},
   };
 
   subscribe(cb: () => void) {
@@ -51,6 +56,7 @@ class GameStoreImpl {
   hydrateFromInit(p: { matchId?: string; board: Board; pieces: Piece[]; startedAt?: string | null; durationMs?: number | null }) {
     const dict: Record<string, Piece> = {};
     for (const pc of p.pieces) dict[pc.id] = pc;
+    const mapping = this.buildDisplayMapping(Object.keys(dict));
     this.snapshot = {
       ...this.snapshot,
       matchId: p.matchId ?? this.snapshot.matchId,
@@ -58,12 +64,17 @@ class GameStoreImpl {
       pieces: dict,
       timer: p.startedAt && p.durationMs ? { startedAt: p.startedAt, durationMs: p.durationMs } : null,
       matchStatus: "READY",
+      _displayIndexToId: mapping.indexToId,
+      _idToDisplayIndex: mapping.idToIndex,
     };
     this.emit();
   }
   applyStateSync(p: { board: Board; pieces: Piece[]; score: { placedByTeam: Record<string, number> }; timer?: { startedAt: string; durationMs: number } | null; matchStatus?: string }) {
     const dict: Record<string, Piece> = {};
     for (const pc of p.pieces) dict[pc.id] = pc;
+    // 既存マッピングがなければ生成。既にある場合は維持（表示の安定性を優先）
+    const hasMapping = this.snapshot._displayIndexToId && Object.keys(this.snapshot._displayIndexToId!).length > 0;
+    const mapping = hasMapping ? { indexToId: this.snapshot._displayIndexToId!, idToIndex: this.snapshot._idToDisplayIndex! } : this.buildDisplayMapping(Object.keys(dict));
     this.snapshot = {
       ...this.snapshot,
       board: p.board,
@@ -71,8 +82,35 @@ class GameStoreImpl {
       score: { placedByTeam: p.score?.placedByTeam ?? {} },
       timer: p.timer ?? null,
       matchStatus: (p.matchStatus as GameSnapshot["matchStatus"]) || this.snapshot.matchStatus,
+      _displayIndexToId: mapping.indexToId,
+      _idToDisplayIndex: mapping.idToIndex,
     };
     this.emit();
+  }
+  private buildDisplayMapping(ids: string[]): { indexToId: Record<number, string>; idToIndex: Record<string, number> } {
+    const indexToId: Record<number, string> = {};
+    const idToIndex: Record<string, number> = {};
+    // 安定化のためソート。25個なら 1..25 に割り当て。
+    const sorted = [...ids].sort();
+    sorted.forEach((id, i) => {
+      const idx = i + 1; // 表示は1始まり
+      indexToId[idx] = id;
+      idToIndex[id] = idx;
+    });
+    return { indexToId, idToIndex };
+  }
+  getPieceIdByDisplayIndex(index: number): string | null {
+    const m = this.snapshot._displayIndexToId || {};
+    return m[index] ?? null;
+  }
+  isCellOccupied(row: number, col: number): boolean {
+    // 配置済みのピースに同一セルがあるかをチェック
+    const pieces = this.snapshot.pieces;
+    for (const id in pieces) {
+      const p = pieces[id];
+      if (p.placed && p.row === row && p.col === col) return true;
+    }
+    return false;
   }
   markPlaced(pieceId: string, row: number, col: number) {
     const cur = this.snapshot.pieces[pieceId] || { id: pieceId };
@@ -139,6 +177,8 @@ export function useGameActions() {
       setScore: (s: { placedByTeam: Record<string, number> }) => gameStore.setScore(s),
       applyTimer: (t: { startedAt: string | null; durationMs: number | null } | { remainingMs: number }) => gameStore.applyTimer(t as any),
       finish: (i: { reason: string; winnerTeamId: string | null; scores: Record<string, number>; finishedAt: string }) => gameStore.finish(i),
+      getPieceIdByDisplayIndex: (index: number) => gameStore.getPieceIdByDisplayIndex(index),
+      isCellOccupied: (row: number, col: number) => gameStore.isCellOccupied(row, col),
     }),
     []
   );
