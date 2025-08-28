@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 
 import { useState, useEffect, useCallback } from "react";
 import { getSocket } from "@/lib/socket/client";
-import { GAME_EVENTS } from "@/features/game/events";
-import { useGameActions, useGameState } from "@/features/game/store";
+import { GAME_EVENTS } from "@/features/Game/events";
+import { useGameActions, useGameState } from "@/features/Game/store";
 import { getOrCreateUserId, getTeamId } from "@/lib/session/session";
 import { Trophy, Clock } from "lucide-react";
 
@@ -96,7 +96,6 @@ const JigsawPuzzle = () => {
   const teamId = getTeamId();
   const userId = getOrCreateUserId();
 
-
   const initializePieces = useCallback(() => {
     const seasons = ["spring", "summer", "winter", "automn"];
     const selectedSeason = seasons[Math.floor(Math.random() * seasons.length)];
@@ -138,7 +137,9 @@ const JigsawPuzzle = () => {
       tick();
       interval = setInterval(tick, 1000);
     }
-    return () => { if (interval) clearInterval(interval); };
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [(game as any)?.timer]);
 
   useEffect(() => {
@@ -186,7 +187,9 @@ const JigsawPuzzle = () => {
     const col = position % 5;
     // バックエンド連携: 既にセルが占有されていれば送信しない
     if (isCellOccupied(row, col)) {
-      try { window.alert("そのマスは使用中です"); } catch {}
+      try {
+        window.alert("そのマスは使用中です");
+      } catch {}
       return;
     }
     const pieceId = getPieceIdByDisplayIndex(selectedPieceId);
@@ -201,8 +204,8 @@ const JigsawPuzzle = () => {
   const availablePieces = pieces.filter((piece) => piece.currentPosition === null);
 
   // 進捗（スコア）
-  const placedByTeam = (game as any)?.score?.placedByTeam || {} as Record<string, number>;
-  const myTeam = teamId || (game as any)?.self?.teamId || '';
+  const placedByTeam = (game as any)?.score?.placedByTeam || ({} as Record<string, number>);
+  const myTeam = teamId || (game as any)?.self?.teamId || "";
   const myPlaced = placedByTeam[myTeam] || 0;
   let oppPlaced = 0;
   if (Object.keys(placedByTeam).length > 0) {
@@ -263,7 +266,7 @@ const JigsawPuzzle = () => {
                         <div
                           onClick={() => handlePieceSelect(piece.id)}
                           className={`w-full h-full relative rounded-lg transition-all overflow-visible flex items-center justify-center
-          ${isFocused ? 'z-50 scale-[1.2] shadow-lg' : ''}
+          ${isFocused ? "z-50 scale-[1.2] shadow-lg" : ""}
         `}
                           style={{
                             transition: "transform 0.3s ease, box-shadow 0.3s ease",
@@ -292,42 +295,38 @@ const JigsawPuzzle = () => {
 
         {/* ピース一覧 */}
         <Card className="p-6">
-          <div
-            className="grid grid-cols-5 gap-2 overflow-y-auto p-2"
-            style={{ maxHeight: `calc(100vh - 550px)` }}
-          >
+          <div className="grid grid-cols-5 gap-2 overflow-y-auto p-2" style={{ maxHeight: `calc(100vh - 550px)` }}>
             {availablePieces.map((piece) => {
-  const isFocused = selectedPieceId === piece.id;
+              const isFocused = selectedPieceId === piece.id;
 
-  return (
-    <div
-      key={piece.id}
-      onClick={() => handlePieceSelect(piece.id)}
-      className={`aspect-square rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center relative
-        ${isFocused
-          ? 'z-50 scale-[1.2] shadow-lg overflow-visible p-0'
-          : 'overflow-hidden p-1 border-2 border-[#2EAFB9] hover:border-[#27A2AA] hover:bg-[#F0FDFA] hover:shadow-md'}
+              return (
+                <div
+                  key={piece.id}
+                  onClick={() => handlePieceSelect(piece.id)}
+                  className={`aspect-square rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center relative ${
+                    isFocused
+                      ? "z-50 scale-[1.2] shadow-lg overflow-visible p-0"
+                      : "overflow-hidden p-1 border-2 border-[#2EAFB9] hover:border-[#27A2AA] hover:bg-[#F0FDFA] hover:shadow-md"
+                  }
       `}
-      style={{
-        transition: "transform 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease",
-      }}
-    >
-      <img
-        src={piece.imageUrl || "/placeholder.svg"}
-        alt={`ピース ${piece.id}`}
-        className="w-full h-full object-cover pointer-events-none rounded"
-        style={{
-          transform: `scale(${DISPLAY_SCALE})`,
-          transformOrigin: "center",
-        }}
-      />
-    </div>
-  );
-})}
+                  style={{
+                    transition: "transform 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease",
+                  }}
+                >
+                  <img
+                    src={piece.imageUrl || "/placeholder.svg"}
+                    alt={`ピース ${piece.id}`}
+                    className="w-full h-full object-cover pointer-events-none rounded"
+                    style={{
+                      transform: `scale(${DISPLAY_SCALE})`,
+                      transformOrigin: "center",
+                    }}
+                  />
+                </div>
+              );
+            })}
             {availablePieces.length === 0 && (
-              <div className="text-center text-gray-500 py-8">
-                すべてのピースが配置されました
-              </div>
+              <div className="text-center text-gray-500 py-8">すべてのピースが配置されました</div>
             )}
           </div>
         </Card>
@@ -338,7 +337,7 @@ const JigsawPuzzle = () => {
 
 export default function Puzzle() {
   return (
-    <main className="relative min-h-screen overflow-hidden p-4">
+    <div className="relative min-h-screen overflow-hidden p-4">
       <svg
         className="absolute inset-0 w-full h-full -z-10"
         viewBox="0 0 540 960"
@@ -373,6 +372,6 @@ export default function Puzzle() {
       <div className="container mx-auto max-w-6xl">
         <JigsawPuzzle />
       </div>
-    </main>
+    </div>
   );
 }

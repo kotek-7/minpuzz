@@ -1,9 +1,9 @@
 "use client";
 
 import type React from "react";
-import { useGameActions, useGameState } from "@/features/game/store";
+import { useGameActions, useGameState } from "@/features/Game/store";
 import { getSocket } from "@/lib/socket/client";
-import { GAME_EVENTS } from "@/features/game/events";
+import { GAME_EVENTS } from "@/features/Game/events";
 import { getOrCreateUserId, getTeamId } from "@/lib/session/session";
 import Puzzle from "@/features/Game/Puzzle";
 import { useEffect } from "react";
@@ -22,14 +22,21 @@ export default function Game() {
     const onSync = (p: any) => applyStateSync(p);
     const onStart = (_: any) => markStarted();
     const onPlaced = (p: any) => {
-      if (!p || typeof p.pieceId !== 'string') return;
+      if (!p || typeof p.pieceId !== "string") return;
       markPlaced(p.pieceId, p.row, p.col);
     };
     const onDenied = (p: any) => {
-      const reason = p?.reason || 'invalidCell';
-      const msg = reason === 'invalidCell' ? 'その位置には置けません' : reason === 'placed' ? '配置済みです' : 'ピースが見つかりません';
+      const reason = p?.reason || "invalidCell";
+      const msg =
+        reason === "invalidCell"
+          ? "その位置には置けません"
+          : reason === "placed"
+            ? "配置済みです"
+            : "ピースが見つかりません";
       // 最小: alert。必要ならToasterへ差し替え
-      try { window.alert(msg); } catch {}
+      try {
+        window.alert(msg);
+      } catch {}
     };
     const onProgress = (p: any) => {
       if (!p || !p.placedByTeam) return;
@@ -41,8 +48,13 @@ export default function Game() {
     const onEnd = (p: any) => {
       // 冪等: 既に終了なら無視
       if ((game as any).ended) return;
-      finish({ reason: p?.reason || 'completed', winnerTeamId: p?.winnerTeamId ?? null, scores: p?.scores || {}, finishedAt: p?.finishedAt || new Date().toISOString() });
-      router.push('/result');
+      finish({
+        reason: p?.reason || "completed",
+        winnerTeamId: p?.winnerTeamId ?? null,
+        scores: p?.scores || {},
+        finishedAt: p?.finishedAt || new Date().toISOString(),
+      });
+      router.push("/result");
     };
     s.on(GAME_EVENTS.GAME_INIT, onInit);
     s.on(GAME_EVENTS.STATE_SYNC, onSync);
@@ -65,7 +77,20 @@ export default function Game() {
       s.off(GAME_EVENTS.TIMER_SYNC, onTimer as any);
       s.off(GAME_EVENTS.GAME_END, onEnd as any);
     };
-  }, [hydrateFromInit, applyStateSync, markStarted, markPlaced, setScore, applyTimer, finish, router, game.matchId, teamId, userId, (game as any).ended]);
+  }, [
+    hydrateFromInit,
+    applyStateSync,
+    markStarted,
+    markPlaced,
+    setScore,
+    applyTimer,
+    finish,
+    router,
+    game.matchId,
+    teamId,
+    userId,
+    (game as any).ended,
+  ]);
 
   // 再同期: 画面復帰や明示操作でサーバから最新の state を取得
   useEffect(() => {
@@ -76,29 +101,30 @@ export default function Game() {
       s.emit(GAME_EVENTS.REQUEST_GAME_INIT as any, { matchId: game.matchId, teamId, userId });
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        clearTimeout(t); t = setTimeout(req, 500);
+      if (document.visibilityState === "visible") {
+        clearTimeout(t);
+        t = setTimeout(req, 500);
       }
     };
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', onVisibility);
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibility);
     }
     return () => {
-      if (typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', onVisibility);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibility);
       }
       if (t) clearTimeout(t);
     };
   }, [game.matchId, teamId, userId]);
 
   return (
-      <div>
-        {/* 接続バナー */}
-        <div className="mb-3 text-sm text-gray-600">
-          <span className="mr-3">matchId: {game.matchId ?? "-"}</span>
-          <span className="mr-3">status: {game.started ? "IN_GAME" : game.board ? "READY" : "CONNECTING"}</span>
-        </div>
-        <Puzzle />
+    <div>
+      {/* 接続バナー */}
+      <div className="mb-3 text-sm text-gray-600">
+        <span className="mr-3">matchId: {game.matchId ?? "-"}</span>
+        <span className="mr-3">status: {game.started ? "IN_GAME" : game.board ? "READY" : "CONNECTING"}</span>
       </div>
+      <Puzzle />
+    </div>
   );
 }
