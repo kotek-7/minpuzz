@@ -4,14 +4,18 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSocket } from "@/lib/socket/client";
 import { MATCHING_EVENTS } from "./events";
+import { useGameActions } from "@/features/game/store";
 
 export default function Matching() {
   const router = useRouter();
+  const { setMatch } = useGameActions();
 
   useEffect(() => {
     const s = getSocket();
-    const onMatchFound = (_p: any) => {
-      // まずはルーティングのみ。詳細は接続フェーズで拡張。
+    const onMatchFound = (p: any) => {
+      if (p && typeof p.matchId === 'string') {
+        setMatch(p.matchId, p.self, p.partner);
+      }
       router.push("/game");
     };
     s.on(MATCHING_EVENTS.MATCH_FOUND, onMatchFound);
@@ -29,4 +33,3 @@ export default function Matching() {
     </div>
   );
 }
-
