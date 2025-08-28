@@ -20,15 +20,20 @@ export function canPlace(
   row: number,
   col: number,
 ): Result<Piece, PlaceCheckError> {
-  const base = ensureExists(piece).andThen(ensureNotPlaced);
+  // 存在チェックのみ実行（配置済みチェックを削除して移動を許可）
+  const base = ensureExists(piece);
   if (base.isErr()) return err(base.error);
   if (!Number.isInteger(row) || row < 0 || row > 4 || !Number.isInteger(col) || col < 0 || col > 4) {
     return err('invalidCell');
   }
   const p = base.value;
-  // 正解セル判定（solRow/solCol一致が設定されている場合のみ適用）
-  if (p.solRow !== undefined && p.solCol !== undefined) {
-    if (p.solRow !== row || p.solCol !== col) return err('invalidCell');
-  }
+  // 新要件: 任意の位置への配置を許可（正解判定はスコア計算時に行う）
+  // 配置済みピースの移動も許可
   return ok(p);
+}
+
+// 正解位置判定用の新しい関数
+export function isCorrectPosition(piece: Piece, row: number, col: number): boolean {
+  return piece.solRow !== undefined && piece.solCol !== undefined && 
+         piece.solRow === row && piece.solCol === col;
 }

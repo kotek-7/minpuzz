@@ -75,7 +75,7 @@ export default function Game() {
   const matchId = gameState.matchId; // GameStoreから取得（マッチング画面で設定済み）
   
   // ローカル状態
-  const [selectedPieceId] = useState<string | null>(null);
+  const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(true);
   const [toasts, setToasts] = useState<Array<{id: string; message: string; type: 'error' | 'success' | 'info'}>>([]);
   
@@ -129,6 +129,95 @@ export default function Game() {
       opponentScore
     };
   }, [gameState, currentTime, timerManager]);
+
+  // アクションハンドラー群
+  const handlePieceSelect = useCallback((pieceId: string) => {
+    if (selectedPieceId === pieceId) {
+      // 既に選択済みのピースをクリック → 選択解除
+      setSelectedPieceId(null);
+      showToast('ピース選択を解除しました', 'info');
+    } else {
+      // 新しいピースを選択
+      setSelectedPieceId(pieceId);
+      const piece = gameState.pieces[pieceId];
+      const displayIndex = computedData.pieceToDisplayIndexMap[pieceId] || '?';
+      
+      if (piece?.placed) {
+        showToast(`ピース ${displayIndex} を選択しました（移動可能）`, 'info');
+      } else {
+        showToast(`ピース ${displayIndex} を選択しました（配置可能）`, 'info');
+      }
+    }
+  }, [selectedPieceId, gameState.pieces, computedData.pieceToDisplayIndexMap, showToast]);
+
+  const handleCellClick = useCallback(async (row: number, col: number) => {
+    if (!selectedPieceId || !matchId || !teamId || !userId) {
+      showToast('ピースを選択するか、セッション情報を確認してください', 'error');
+      return;
+    }
+
+    const selectedPiece = gameState.pieces[selectedPieceId];
+    if (!selectedPiece) {
+      showToast('選択されたピースが見つかりません', 'error');
+      return;
+    }
+
+    // 配置先セルの占有チェック
+    const cellKey = `${row}-${col}`;
+    if (computedData.occupiedCells.has(cellKey)) {
+      showToast('その位置には既に他のピースが配置されています', 'error');
+      return;
+    }
+
+    try {
+      const socket = getSocket();
+      
+      if (selectedPiece.placed) {
+        // 配置済みピースの移動
+        console.log(`[Game] Moving piece ${selectedPieceId} from (${selectedPiece.row}, ${selectedPiece.col}) to (${row}, ${col})`);
+        
+        // piece-place イベントを送信（移動も配置として扱う）
+        socket.emit('piece-place', {
+          matchId,
+          teamId,
+          userId,
+          pieceId: selectedPieceId,
+          row,
+          col
+        });
+
+        const displayIndex = computedData.pieceToDisplayIndexMap[selectedPieceId] || '?';
+        showToast(`ピース ${displayIndex} を (${row + 1}, ${col + 1}) に移動中...`, 'info');
+      } else {
+        // 未配置ピースの配置
+        console.log(`[Game] Placing piece ${selectedPieceId} at (${row}, ${col})`);
+        
+        socket.emit('piece-place', {
+          matchId,
+          teamId,
+          userId,
+          pieceId: selectedPieceId,
+          row,
+          col
+        });
+
+        const displayIndex = computedData.pieceToDisplayIndexMap[selectedPieceId] || '?';
+        showToast(`ピース ${displayIndex} を (${row + 1}, ${col + 1}) に配置中...`, 'info');
+      }
+
+      // 配置/移動後は選択解除
+      setSelectedPieceId(null);
+      
+    } catch (error) {
+      console.error('[Game] Error in handleCellClick:', error);
+      showToast('ピース配置中にエラーが発生しました', 'error');
+    }
+  }, [selectedPieceId, matchId, teamId, userId, gameState.pieces, computedData.occupiedCells, computedData.pieceToDisplayIndexMap, showToast]);
+
+  const handlePlacedPieceClick = useCallback((pieceId: string) => {
+    // 配置済みピースクリック = 選択処理（handlePieceSelectと同じ）
+    handlePieceSelect(pieceId);
+  }, [handlePieceSelect]);
 
   // 単一のタイマーループ - 条件を簡素化
   useEffect(() => {
@@ -225,6 +314,72 @@ export default function Game() {
       gameActions.applyTimer(normalized);
     };
     
+    // piece-placed イベントハンドラ（配置成功通知）
+    const handlePiecePlaced = (payload: {
+      pieceId: string;
+      row: number;
+      col: number;
+      byUserId: string;
+    }) => {
+      console.log('[Game] Received piece-placed:', payload);
+      
+      // ローカル状態を即座に更新（楽観的更新）
+      gameActions.markPlaced(payload.pieceId, payload.row, payload.col);
+      
+      // displayIndex をpieceId から推定（番号順と仮定）
+      const displayIndex = payload.pieceId.split('-').pop() || '?';
+      if (payload.byUserId === userId) {
+        showToast(`ピース ${displayIndex} を配置しました！`, 'success');
+      } else {
+        showToast(`チームメンバーがピース ${displayIndex} を配置しました`, 'info');
+      }
+    };
+
+    // piece-place-denied イベントハンドラ（配置拒否通知）
+    const handlePiecePlaceDenied = (payload: {
+      pieceId: string;
+      reason: string;
+    }) => {
+      console.log('[Game] Received piece-place-denied:', payload);
+      
+      // displayIndex をpieceId から推定
+      const displayIndex = payload.pieceId.split('-').pop() || '?';
+      showToast(`ピース ${displayIndex} の配置が拒否されました: ${payload.reason}`, 'error');
+      
+      // 選択解除
+      setSelectedPieceId(null);
+    };
+
+    // progress-update イベントハンドラ（スコア更新通知）
+    const handleProgressUpdate = (payload: {
+      placedByTeam: Record<string, number>;
+    }) => {
+      console.log('[Game] Received progress-update:', payload);
+      gameActions.setScore({ placedByTeam: payload.placedByTeam });
+    };
+
+    // game-end イベントハンドラ（ゲーム終了通知）
+    const handleGameEnd = (payload: {
+      reason: string;
+      winnerTeamId: string | null;
+      scores: Record<string, number>;
+      finishedAt: string;
+    }) => {
+      console.log('[Game] Received game-end:', payload);
+      gameActions.finish(payload);
+      
+      const isWinner = payload.winnerTeamId === teamId;
+      const isDraw = payload.winnerTeamId === null;
+      
+      if (isDraw) {
+        showToast('引き分けです！', 'info');
+      } else if (isWinner) {
+        showToast('勝利しました！🎉', 'success');
+      } else {
+        showToast('敗北しました...', 'error');
+      }
+    };
+
     // エラーハンドラ
     const handleGameError = (error: { message: string }) => {
       console.error('[Game] Game error:', error);
@@ -236,6 +391,10 @@ export default function Game() {
     socket.on('state-sync', handleStateSync);
     socket.on('game-start', handleGameStart);
     socket.on('timer-sync', handleTimerSync);
+    socket.on('piece-placed', handlePiecePlaced);
+    socket.on('piece-place-denied', handlePiecePlaceDenied);
+    socket.on('progress-update', handleProgressUpdate);
+    socket.on('game-end', handleGameEnd);
     socket.on('game-error', handleGameError);
     
     // join-game イベント送信（ゲームルームに接続登録）
@@ -248,6 +407,10 @@ export default function Game() {
       socket.off('state-sync', handleStateSync);
       socket.off('game-start', handleGameStart);
       socket.off('timer-sync', handleTimerSync);
+      socket.off('piece-placed', handlePiecePlaced);
+      socket.off('piece-place-denied', handlePiecePlaceDenied);
+      socket.off('progress-update', handleProgressUpdate);
+      socket.off('game-end', handleGameEnd);
       socket.off('game-error', handleGameError);
       console.log('[Game] Socket event handlers cleaned up');
     };
@@ -266,6 +429,13 @@ export default function Game() {
     toasts
   }), [selectedPieceId, isConnecting, toasts]);
   
+  // アクションオブジェクト
+  const actions = React.useMemo(() => ({
+    onPieceSelect: handlePieceSelect,
+    onCellClick: handleCellClick,
+    onPlacedPieceClick: handlePlacedPieceClick
+  }), [handlePieceSelect, handleCellClick, handlePlacedPieceClick]);
+
   // GameUIProps
   const gameUIProps: GameUIProps = {
     gameState: {
@@ -281,7 +451,8 @@ export default function Game() {
     },
     sessionInfo,
     uiState,
-    computedData
+    computedData,
+    actions
   };
   
   return <GameUI {...gameUIProps} />;

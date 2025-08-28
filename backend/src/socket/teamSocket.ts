@@ -386,7 +386,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
   socket.on(SOCKET_EVENTS.PIECE_PLACE, async (payload) => {
     try {
       const p = PiecePlacePayloadSchema.parse(payload);
-      const res = await PieceService.place(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, row: p.row, col: p.col });
+      const res = await PieceService.place(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, teamId: p.teamId, row: p.row, col: p.col });
       if (res.isOk()) {
         // 自チームへ配置確定
         const placed = { pieceId: p.pieceId, row: p.row, col: p.col, byUserId: p.userId };
