@@ -303,12 +303,12 @@ const JigsawPuzzle = () => {
                 <div
                   key={piece.id}
                   onClick={() => handlePieceSelect(piece.id)}
-                  className={`aspect-square rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center relative ${
-                    isFocused
-                      ? "z-50 scale-[1.2] shadow-lg overflow-visible p-0"
-                      : "overflow-hidden p-1 border-2 border-[#2EAFB9] hover:border-[#27A2AA] hover:bg-[#F0FDFA] hover:shadow-md"
-                  }
-      `}
+                  className={`aspect-square rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center relative
+                    ${
+                      isFocused
+                        ? "z-50 scale-[1.2] shadow-lg overflow-visible p-0"
+                        : "overflow-hidden p-1 border-2 border-[#2EAFB9] hover:border-[#27A2AA] hover:bg-[#F0FDFA] hover:shadow-md"
+                    }`}
                   style={{
                     transition: "transform 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease",
                   }}

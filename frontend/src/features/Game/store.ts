@@ -49,11 +49,21 @@ class GameStoreImpl {
     return this.snapshot;
   }
 
-  setMatch(matchId: string, self?: { teamId: string; memberCount?: number } | null, partner?: { teamId: string; memberCount?: number } | null) {
+  setMatch(
+    matchId: string,
+    self?: { teamId: string; memberCount?: number } | null,
+    partner?: { teamId: string; memberCount?: number } | null,
+  ) {
     this.snapshot = { ...this.snapshot, matchId, self: self ?? null, partner: partner ?? null };
     this.emit();
   }
-  hydrateFromInit(p: { matchId?: string; board: Board; pieces: Piece[]; startedAt?: string | null; durationMs?: number | null }) {
+  hydrateFromInit(p: {
+    matchId?: string;
+    board: Board;
+    pieces: Piece[];
+    startedAt?: string | null;
+    durationMs?: number | null;
+  }) {
     const dict: Record<string, Piece> = {};
     for (const pc of p.pieces) dict[pc.id] = pc;
     const mapping = this.buildDisplayMapping(Object.keys(dict));
@@ -69,12 +79,20 @@ class GameStoreImpl {
     };
     this.emit();
   }
-  applyStateSync(p: { board: Board; pieces: Piece[]; score: { placedByTeam: Record<string, number> }; timer?: { startedAt: string; durationMs: number } | null; matchStatus?: string }) {
+  applyStateSync(p: {
+    board: Board;
+    pieces: Piece[];
+    score: { placedByTeam: Record<string, number> };
+    timer?: { startedAt: string; durationMs: number } | null;
+    matchStatus?: string;
+  }) {
     const dict: Record<string, Piece> = {};
     for (const pc of p.pieces) dict[pc.id] = pc;
     // 既存マッピングがなければ生成。既にある場合は維持（表示の安定性を優先）
     const hasMapping = this.snapshot._displayIndexToId && Object.keys(this.snapshot._displayIndexToId!).length > 0;
-    const mapping = hasMapping ? { indexToId: this.snapshot._displayIndexToId!, idToIndex: this.snapshot._idToDisplayIndex! } : this.buildDisplayMapping(Object.keys(dict));
+    const mapping = hasMapping
+      ? { indexToId: this.snapshot._displayIndexToId!, idToIndex: this.snapshot._idToDisplayIndex! }
+      : this.buildDisplayMapping(Object.keys(dict));
     this.snapshot = {
       ...this.snapshot,
       board: p.board,
@@ -127,7 +145,7 @@ class GameStoreImpl {
   }
   applyTimer(p: { startedAt: string | null; durationMs: number | null } | { remainingMs: number }) {
     // 最小仕様: サーバの startedAt/duration を信頼。remainingMs は表示補助に使うなら別途保持。
-    if ('remainingMs' in p) {
+    if ("remainingMs" in p) {
       // オプション: 必要に応じてローカル側で補助保持（ここでは何もしない）
       this.emit();
       return;
@@ -160,26 +178,49 @@ class GameStoreImpl {
 const gameStore = new GameStoreImpl();
 
 export function useGameState() {
-  return useSyncExternalStore((cb) => gameStore.subscribe(cb), () => gameStore.getSnapshot(), () => gameStore.getSnapshot());
+  return useSyncExternalStore(
+    (cb) => gameStore.subscribe(cb),
+    () => gameStore.getSnapshot(),
+    () => gameStore.getSnapshot(),
+  );
 }
 
 export function useGameActions() {
   return useMemo(
     () => ({
-      setMatch: (matchId: string, self?: { teamId: string; memberCount?: number } | null, partner?: { teamId: string; memberCount?: number } | null) =>
-        gameStore.setMatch(matchId, self, partner),
-      hydrateFromInit: (p: { matchId?: string; board: Board; pieces: Piece[]; startedAt?: string | null; durationMs?: number | null }) =>
-        gameStore.hydrateFromInit(p),
-      applyStateSync: (p: { board: Board; pieces: Piece[]; score: { placedByTeam: Record<string, number> }; timer?: { startedAt: string; durationMs: number } | null; matchStatus?: string }) =>
-        gameStore.applyStateSync(p),
+      setMatch: (
+        matchId: string,
+        self?: { teamId: string; memberCount?: number } | null,
+        partner?: { teamId: string; memberCount?: number } | null,
+      ) => gameStore.setMatch(matchId, self, partner),
+      hydrateFromInit: (p: {
+        matchId?: string;
+        board: Board;
+        pieces: Piece[];
+        startedAt?: string | null;
+        durationMs?: number | null;
+      }) => gameStore.hydrateFromInit(p),
+      applyStateSync: (p: {
+        board: Board;
+        pieces: Piece[];
+        score: { placedByTeam: Record<string, number> };
+        timer?: { startedAt: string; durationMs: number } | null;
+        matchStatus?: string;
+      }) => gameStore.applyStateSync(p),
       markStarted: () => gameStore.markStarted(),
       markPlaced: (pieceId: string, row: number, col: number) => gameStore.markPlaced(pieceId, row, col),
       setScore: (s: { placedByTeam: Record<string, number> }) => gameStore.setScore(s),
-      applyTimer: (t: { startedAt: string | null; durationMs: number | null } | { remainingMs: number }) => gameStore.applyTimer(t as any),
-      finish: (i: { reason: string; winnerTeamId: string | null; scores: Record<string, number>; finishedAt: string }) => gameStore.finish(i),
+      applyTimer: (t: { startedAt: string | null; durationMs: number | null } | { remainingMs: number }) =>
+        gameStore.applyTimer(t as any),
+      finish: (i: {
+        reason: string;
+        winnerTeamId: string | null;
+        scores: Record<string, number>;
+        finishedAt: string;
+      }) => gameStore.finish(i),
       getPieceIdByDisplayIndex: (index: number) => gameStore.getPieceIdByDisplayIndex(index),
       isCellOccupied: (row: number, col: number) => gameStore.isCellOccupied(row, col),
     }),
-    []
+    [],
   );
 }
