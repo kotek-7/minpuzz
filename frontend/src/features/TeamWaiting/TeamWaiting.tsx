@@ -8,6 +8,7 @@ import { useTeamState } from "@/features/team/store";
 import { startMatching } from "@/lib/api/teams";
 import { getSocket } from "@/lib/socket/client";
 import { MATCHING_EVENTS } from "@/features/matching/events";
+import { useGameActions } from "@/features/game/store";
 
 export const TeamWaiting = () => {
   const router = useRouter();
@@ -16,6 +17,7 @@ export const TeamWaiting = () => {
   const userId = getOrCreateUserId();
   const { members, memberCount } = useTeamState();
   const [loading, setLoading] = React.useState(false);
+  const { setMatch } = useGameActions();
 
   useEffect(() => {
     if (!teamId || !userId) {
@@ -33,7 +35,10 @@ export const TeamWaiting = () => {
       if (p.teamId !== teamId) return;
       router.push("/matching");
     };
-    const onMatchFound = (_p: any) => {
+    const onMatchFound = (p: any) => {
+      if (p && typeof p.matchId === 'string') {
+        setMatch(p.matchId, p.self, p.partner);
+      }
       // navigate-to-matching と match-found がほぼ同時に来る場合に備え、
       // 待機画面でも直接ゲームへ遷移できるようにする
       router.push("/game");
