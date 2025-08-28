@@ -74,53 +74,45 @@ interface PuzzlePiece {
 }
 
 const JigsawPuzzle = () => {
-  const DISPLAY_SCALE = 3.5; // 表示サイズ（scale=350相当）
+  const DISPLAY_SCALE = 3.5;
 
   const [pieces, setPieces] = useState<PuzzlePiece[]>([]);
   const [board, setBoard] = useState<(number | null)[]>(Array(25).fill(null));
-  const [draggedPiece, setDraggedPiece] = useState<number | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [completedPieces, setCompletedPieces] = useState<Set<number>>(new Set());
   const [currentSeason, setCurrentSeason] = useState<string>("");
-  const [timeLeft, setTimeLeft] = useState<number>(120); // 2分 = 120秒
+  const [timeLeft, setTimeLeft] = useState<number>(120);
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
+  const [selectedPieceId, setSelectedPieceId] = useState<number | null>(null);
 
-  // パズルピースを初期化
   const initializePieces = useCallback(() => {
     const seasons = ["spring", "summer", "winter"];
     const selectedSeason = seasons[Math.floor(Math.random() * seasons.length)];
     setCurrentSeason(selectedSeason);
 
-    const initialPieces: PuzzlePiece[] = [];
+    const initialPieces: PuzzlePiece[] = Array.from({ length: 25 }, (_, i) => ({
+      id: i + 1,
+      currentPosition: null,
+      correctPosition: i,
+      imageUrl: `/pieces/${selectedSeason}/${i + 1}.png`,
+    }));
 
-    for (let i = 1; i <= 25; i++) {
-      initialPieces.push({
-        id: i,
-        currentPosition: null,
-        correctPosition: i - 1, // 0-based index
-        imageUrl: `/pieces/${selectedSeason}/${i}.png`,
-      });
-    }
-
-    // ピースをランダムにシャッフル
     const shuffledPieces = [...initialPieces].sort(() => Math.random() - 0.5);
-
     setPieces(shuffledPieces);
     setBoard(Array(25).fill(null));
     setIsComplete(false);
     setCompletedPieces(new Set());
-    setTimeLeft(120); // タイマーをリセット
+    setTimeLeft(120);
     setIsGameStarted(false);
+    setSelectedPieceId(null);
   }, []);
 
   useEffect(() => {
     initializePieces();
   }, [initializePieces]);
 
-  // タイマー機能
   useEffect(() => {
     let interval: NodeJS.Timeout;
-
     if (isGameStarted && timeLeft > 0 && !isComplete) {
       interval = setInterval(() => {
         setTimeLeft((prev) => {
@@ -132,44 +124,20 @@ const JigsawPuzzle = () => {
         });
       }, 1000);
     }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
+    return () => clearInterval(interval);
   }, [isGameStarted, timeLeft, isComplete]);
 
-  // 完成チェック
   useEffect(() => {
-    const correctPieces = pieces.filter((piece) => {
-      return piece.currentPosition === piece.correctPosition;
-    });
+    const correctPieces = pieces.filter((piece) => piece.currentPosition === piece.correctPosition);
     setCompletedPieces(new Set(correctPieces.map((p) => p.id)));
-
     if (correctPieces.length === 25 && pieces.length === 25) {
       setIsComplete(true);
     }
   }, [pieces]);
 
-  const handleDragStart = (pieceId: number) => {
-    // ゲーム開始
-    if (!isGameStarted) {
-      setIsGameStarted(true);
-    }
-    setDraggedPiece(pieceId);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (position: number) => {
-    if (draggedPiece === null) return;
-
+  const handleDrop = (position: number, pieceId: number) => {
     const newPieces = pieces.map((piece) => {
-      if (piece.id === draggedPiece) {
-        // 現在の位置をクリア
+      if (piece.id === pieceId) {
         if (piece.currentPosition !== null) {
           setBoard((prev) => {
             const newBoard = [...prev];
@@ -179,7 +147,6 @@ const JigsawPuzzle = () => {
         }
         return { ...piece, currentPosition: position };
       }
-      // 既にその位置にあるピースを移動
       if (piece.currentPosition === position) {
         return { ...piece, currentPosition: null };
       }
@@ -187,28 +154,22 @@ const JigsawPuzzle = () => {
     });
 
     setPieces(newPieces);
-
-    // ボードを更新
     setBoard((prev) => {
       const newBoard = [...prev];
-      newBoard[position] = draggedPiece;
+      newBoard[position] = pieceId;
       return newBoard;
     });
-
-    setDraggedPiece(null);
   };
 
-  const handlePieceClick = (pieceId: number) => {
-    // ゲーム開始
-    if (!isGameStarted) {
-      setIsGameStarted(true);
-    }
+  const handlePieceSelect = (pieceId: number) => {
+    if (!isGameStarted) setIsGameStarted(true);
+    setSelectedPieceId(pieceId);
+  };
 
-    // 空いている最初の位置に配置
-    const emptyPosition = board.findIndex((pos) => pos === null);
-    if (emptyPosition !== -1) {
-      handleDrop(emptyPosition);
-    }
+  const handleBoardClick = (position: number) => {
+    if (selectedPieceId === null) return;
+    handleDrop(position, selectedPieceId);
+    setSelectedPieceId(null);
   };
 
   const availablePieces = pieces.filter((piece) => piece.currentPosition === null);
@@ -245,55 +206,56 @@ const JigsawPuzzle = () => {
             {Array.from({ length: 25 }, (_, index) => {
               const pieceId = board[index];
               const piece = pieces.find((p) => p.id === pieceId);
-              const isCorrect = piece && piece.correctPosition === index;
 
               return (
                 <div
                   key={index}
-                  className={`
-                    aspect-square border border-[#2EAFB9] 
-                    rounded-none flex items-center justify-center
-                    transition-all duration-200
-                    bg-white
-                    hover:border-[#27A2AA] hover:bg-[#F0FDFA]
-                  `}
-                  onDragOver={handleDragOver}
-                  onDrop={() => handleDrop(index)}
+                  onClick={() => handleBoardClick(index)}
+                  className="aspect-square border border-[#2EAFB9] flex items-center justify-center hover:border-[#27A2AA] hover:bg-[#F0FDFA]"
                 >
-                  {piece && (
-                    <div draggable onDragStart={() => handleDragStart(piece.id)} className="w-full h-full relative">
+                  {piece ? (
+                    <div
+                      onClick={() => handlePieceSelect(piece.id)}
+                      className={`w-full h-full relative rounded-lg transition-all
+                          ${selectedPieceId === piece.id
+                          ? 'border-4 border-[#27A2AA] bg-[#F0FDFA] shadow-md scale-[1.03]'
+                          : ''}
+                      `}
+                    >
                       <img
                         src={piece.imageUrl || "/placeholder.svg"}
                         alt={`ピース ${piece.id}`}
-                        className={`
-                          object-cover rounded absolute top-0 left-0 pointer-events-none
-                        `}
+                        className="object-cover absolute top-0 left-0 w-full h-full pointer-events-none"
                         style={{
                           transform: `scale(${DISPLAY_SCALE})`,
                           transformOrigin: "center",
                         }}
-                        draggable={false}
-                        onDragStart={(e) => e.stopPropagation()}
                       />
                     </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">{index + 1}</span>
                   )}
-                  {!piece && <span className="text-xs text-gray-400">{index + 1}</span>}
                 </div>
               );
             })}
           </div>
         </Card>
 
-        {/* ピース置き場 */}
+        {/* ピース一覧 */}
         <Card className="p-6">
-          <div className="grid grid-cols-5 gap-2 max-h-[500px] overflow-y-auto p-2">
+          <div
+            className="grid grid-cols-5 gap-2 overflow-y-auto p-2"
+            style={{ maxHeight: `calc(100vh - 550px)` }}
+          >
             {availablePieces.map((piece) => (
               <div
                 key={piece.id}
-                className="aspect-square border-2 border-[#2EAFB9] rounded-lg overflow-hidden cursor-pointer hover:border-[#27A2AA] transition-colors shadow-sm hover:shadow-md"
-                draggable
-                onDragStart={() => handleDragStart(piece.id)}
-                onClick={() => handlePieceClick(piece.id)}
+                onClick={() => handlePieceSelect(piece.id)}
+                className={`aspect-square rounded-lg cursor-pointer transition-all shadow-sm overflow-hidden flex items-center justify-center
+                    ${selectedPieceId === piece.id
+                    ? 'border-4 border-[#27A2AA] bg-[#F0FDFA] shadow-md scale-[1.03]'
+                    : 'border-2 border-[#2EAFB9] hover:border-[#27A2AA] hover:bg-[#F0FDFA] hover:shadow-md'}
+                `}
               >
                 <img
                   src={piece.imageUrl || "/placeholder.svg"}
@@ -306,39 +268,52 @@ const JigsawPuzzle = () => {
                 />
               </div>
             ))}
+            {availablePieces.length === 0 && (
+              <div className="text-center text-gray-500 py-8">
+                すべてのピースが配置されました
+              </div>
+            )}
           </div>
-          {availablePieces.length === 0 && (
-            <div className="text-center text-gray-500 py-8">すべてのピースが配置されました</div>
-          )}
         </Card>
       </div>
-
-      {/* 下部の波型デザインのコンポーネントです。 */}
-      <svg
-        className="mt-auto mt-10 w-full h-[73px]"
-        fill="none"
-        viewBox="0 0 393 73"
-        preserveAspectRatio="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M19.65 7.665C13.1 12.775 6.55 15.33 0 15.33L0 73H393V15.33C386.45 15.33 379.9 12.775 373.35 7.665C360.25 -2.555 347.15 -2.555 334.05 7.665C327.5 12.775 320.95 15.33 314.4 15.33C307.85 15.33 301.3 12.775 294.75 7.665C281.65 -2.555 268.55 -2.555 255.45 7.665C248.9 12.775 242.35 15.33 235.8 15.33C229.25 15.33 222.7 12.775 216.15 7.665C203.05 -2.555 189.95 -2.555 176.85 7.665C170.3 12.775 163.75 15.33 157.2 15.33C150.65 15.33 144.1 12.775 137.55 7.665C124.45 -2.555 111.35 -2.555 98.25 7.665C91.7 12.775 85.15 15.33 78.6 15.33C72.05 15.33 65.5 12.775 58.95 7.665C45.85 -2.555 32.75 -2.555 19.65 7.665Z"
-          fill="url(#paint0_linear_12_62)"
-        />
-        <defs>
-          <linearGradient id="paint0_linear_12_62" x1="196.5" y1="0" x2="196.5" y2="73" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#2EAFB9" />
-            <stop offset="1" stopColor="#27A2AA" />
-          </linearGradient>
-        </defs>
-      </svg>
     </div>
   );
 };
 
 export default function Puzzle() {
   return (
-    <main className="min-h-screen bg-white p-4">
+    <main className="relative min-h-screen overflow-hidden p-4">
+      <svg
+        className="absolute inset-0 w-full h-full -z-10"
+        viewBox="0 0 540 960"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <rect x="0" y="0" width="540" height="960" fill="#F5B12A" />
+        <defs>
+          <linearGradient id="grad1_0" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="30%" stopColor="#f5b12a" stopOpacity="1" />
+            <stop offset="70%" stopColor="#f5b12a" stopOpacity="1" />
+          </linearGradient>
+          <linearGradient id="grad2_0" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="30%" stopColor="#f5b12a" stopOpacity="1" />
+            <stop offset="70%" stopColor="#f5b12a" stopOpacity="1" />
+          </linearGradient>
+        </defs>
+        <g transform="translate(540, 0)">
+          <path
+            d="M0 432C-73.6 418 -147.2 404 -213.5 369.8C-279.8 335.5 -338.9 281 -374.1 216C-409.3 151 -420.7 75.5 -432 0L0 0Z"
+            fill="#4AE2F3"
+          />
+        </g>
+        <g transform="translate(0, 960)">
+          <path
+            d="M0 -432C74.4 -419.4 148.8 -406.8 215 -372.4C281.2 -338 339.3 -281.7 374.1 -216C408.9 -150.3 420.5 -75.1 432 0L0 0Z"
+            fill="#4AE2F3"
+          />
+        </g>
+      </svg>
+
       <div className="container mx-auto max-w-6xl">
         <JigsawPuzzle />
       </div>
