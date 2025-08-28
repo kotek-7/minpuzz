@@ -1,11 +1,67 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import GameUI, { GameUIProps } from "./components/GameUI";
 import { useGameState, useGameActions } from "./store";
 import { getOrCreateUserId, getTeamId } from "@/lib/session/session";
 import { getSocket } from "@/lib/socket/client";
+
+// timer-sync 受信payload（docs準拠）
+type TimerSyncPayload = {
+  nowIso?: string;
+  startedAt?: string | null;
+  durationMs?: number | null;
+  remainingMs?: number;
+};
+
+// 統一化されたタイマー状態管理
+class TimerManager {
+  private serverRemainingMs: number | null = null;
+  private serverSyncTime: number | null = null;
+  private gameStartTime: number | null = null;
+  private gameDuration: number | null = null;
+  
+  // サーバー同期情報を更新
+  updateFromSync(remainingMs: number) {
+    this.serverRemainingMs = remainingMs;
+    this.serverSyncTime = Date.now();
+  }
+  
+  // ゲーム開始情報を更新
+  updateGameInfo(startedAt: string, durationMs: number) {
+    this.gameStartTime = new Date(startedAt).getTime();
+    this.gameDuration = durationMs;
+  }
+  
+  // リセット
+  reset() {
+    this.serverRemainingMs = null;
+    this.serverSyncTime = null;
+    this.gameStartTime = null;
+    this.gameDuration = null;
+  }
+  
+  // 現在の残り時間を計算
+  calculateRemainingMs(currentTime: number): number | null {
+    // 優先度1: サーバー同期情報があれば使用（最も正確）
+    if (this.serverRemainingMs !== null && this.serverSyncTime !== null) {
+      const elapsedSinceSync = currentTime - this.serverSyncTime;
+      const remaining = this.serverRemainingMs - elapsedSinceSync;
+      return Math.max(0, remaining);
+    }
+    
+    // 優先度2: ゲーム開始情報から計算（フォールバック）
+    if (this.gameStartTime !== null && this.gameDuration !== null) {
+      const elapsed = currentTime - this.gameStartTime;
+      const remaining = this.gameDuration - elapsed;
+      return Math.max(0, remaining);
+    }
+    
+    // 情報なし
+    return null;
+  }
+}
 
 // ゲーム接続フェーズの実装（sequence-game-connection.mmd）
 export default function Game() {
@@ -19,9 +75,13 @@ export default function Game() {
   const matchId = gameState.matchId; // GameStoreから取得（マッチング画面で設定済み）
   
   // ローカル状態
-  const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
+  const [selectedPieceId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(true);
   const [toasts, setToasts] = useState<Array<{id: string; message: string; type: 'error' | 'success' | 'info'}>>([]);
+  
+  // 統一タイマー管理
+  const timerManager = useRef(new TimerManager()).current;
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   
   // Toast表示関数
   const showToast = useCallback((message: string, type: 'error' | 'success' | 'info') => {
@@ -32,7 +92,7 @@ export default function Game() {
     }, 3000);
   }, []);
   
-  // 計算済みデータ
+  // 計算済みデータ - 簡素化されたタイマー計算
   const computedData = React.useMemo(() => {
     const pieceToDisplayIndexMap: Record<string, number> = {};
     const occupiedCells = new Set<string>();
@@ -51,13 +111,10 @@ export default function Game() {
       }
     });
     
-    // 残り時間計算
+    // 残り時間計算 - 統一化されたロジック
     let remainingTimeMs: number | null = null;
-    if (gameState.timer && gameState.started) {
-      const now = Date.now();
-      const startedTime = new Date(gameState.timer.startedAt).getTime();
-      const elapsed = now - startedTime;
-      remainingTimeMs = Math.max(0, gameState.timer.durationMs - elapsed);
+    if (gameState.started && !gameState.ended) {
+      remainingTimeMs = timerManager.calculateRemainingMs(currentTime);
     }
     
     // スコア計算
@@ -71,7 +128,24 @@ export default function Game() {
       myScore,
       opponentScore
     };
-  }, [gameState]);
+  }, [gameState, currentTime, timerManager]);
+
+  // 単一のタイマーループ - 条件を簡素化
+  useEffect(() => {
+    if (!gameState.started || gameState.ended) {
+      return; // タイマー停止
+    }
+    
+    console.log('[Timer] Starting timer loop');
+    const intervalId = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 250);
+    
+    return () => {
+      console.log('[Timer] Stopping timer loop');
+      clearInterval(intervalId);
+    };
+  }, [gameState.started, gameState.ended]); // timerは除外
   
   // Socket接続とゲーム接続フェーズ（sequence-game-connection.mmd）
   useEffect(() => {
@@ -90,7 +164,7 @@ export default function Game() {
       socket.connect();
     }
     
-    // game-init イベントハンドラ（game-init後に即座にstate-syncも受信）
+    // game-init イベントハンドラ
     const handleGameInit = (payload: {
       matchId?: string;
       board: { rows: number; cols: number };
@@ -100,12 +174,18 @@ export default function Game() {
     }) => {
       console.log('[Game] Received game-init:', payload);
       gameActions.hydrateFromInit(payload);
-      // 初期化完了後、接続中状態を解除
+      
+      // タイマー管理初期化
+      timerManager.reset();
+      if (payload.startedAt && payload.durationMs) {
+        timerManager.updateGameInfo(payload.startedAt, payload.durationMs);
+      }
+      
       setIsConnecting(false);
       showToast('ゲームに接続しました', 'success');
     };
     
-    // state-sync イベントハンドラ（最新全量の状態同期）
+    // state-sync イベントハンドラ
     const handleStateSync = (payload: {
       board: { rows: number; cols: number };
       pieces: Array<{ id: string; placed?: boolean; row?: number; col?: number }>;
@@ -115,19 +195,34 @@ export default function Game() {
     }) => {
       console.log('[Game] Received state-sync:', payload);
       gameActions.applyStateSync(payload);
+      
+      // タイマー情報更新
+      if (payload.timer) {
+        timerManager.updateGameInfo(payload.timer.startedAt, payload.timer.durationMs);
+      }
     };
     
-    // game-start イベントハンドラ（全プレイヤー接続完了後）
+    // game-start イベントハンドラ
     const handleGameStart = (payload: { matchId: string }) => {
       console.log('[Game] Received game-start:', payload);
       gameActions.markStarted();
       showToast('ゲーム開始！', 'success');
     };
     
-    // timer-sync イベントハンドラ（5秒周期の時間同期）
-    const handleTimerSync = (payload: { remainingMs: number } | { startedAt: string; durationMs: number }) => {
+    // timer-sync イベントハンドラ - 簡素化
+    const handleTimerSync = (payload: TimerSyncPayload) => {
       console.log('[Game] Received timer-sync:', payload);
-      gameActions.applyTimer(payload);
+      
+      // サーバー同期情報を保存
+      if (typeof payload.remainingMs === 'number') {
+        timerManager.updateFromSync(payload.remainingMs);
+      }
+      
+      // ストア側にも通知（既存APIとの互換性）
+      const normalized = typeof payload.remainingMs === 'number'
+        ? { remainingMs: payload.remainingMs }
+        : { startedAt: payload.startedAt ?? null, durationMs: payload.durationMs ?? null };
+      gameActions.applyTimer(normalized);
     };
     
     // エラーハンドラ
@@ -156,7 +251,7 @@ export default function Game() {
       socket.off('game-error', handleGameError);
       console.log('[Game] Socket event handlers cleaned up');
     };
-  }, [matchId, teamId, userId, gameActions, router, showToast]);
+  }, [matchId, teamId, userId, gameActions, router, showToast, timerManager]);
   
   // セッション情報
   const sessionInfo = React.useMemo(() => {
