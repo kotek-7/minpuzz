@@ -265,9 +265,7 @@ const JigsawPuzzle = () => {
                       return (
                         <div
                           onClick={() => handlePieceSelect(piece.id)}
-                          className={`w-full h-full relative rounded-lg transition-all overflow-visible flex items-center justify-center
-          ${isFocused ? "z-50 scale-[1.2] shadow-lg" : ""}
-        `}
+                          className={`w-full h-full relative rounded-lg transition-all overflow-visible flex items-center justify-center ${isFocused ? "z-50 scale-[1.2] shadow-lg" : ""}`}
                           style={{
                             transition: "transform 0.3s ease, box-shadow 0.3s ease",
                           }}
