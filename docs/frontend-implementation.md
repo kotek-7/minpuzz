@@ -343,7 +343,78 @@ function onProgress(p: { placedByTeam: Record<string, number> }) {
   - UI: 選択中のピースを強調。占有セルはクリック不可に。
   - エラー: denied理由は短文表示（invalidCell/placed/notFound）。選択状態は維持し再試行可。
   - 同時操作: 先着のみ成功（後続は denied）。
-  - 受信: `piece-placed` で該当ピースを配置済みに更新。
+- 受信: `piece-placed` で該当ピースを配置済みに更新。
+
+### ゲーム本体つなぎ込み（バックエンド知らなくてもOK）
+- 目的: 「サーバ契約（イベント/ペイロード）」に沿って、フロント側の状態とUIを同期させる。
+- 使うイベント（最小）:
+  - 送信: `piece-place { matchId, teamId, userId, pieceId, row, col }`
+  - 受信: `piece-placed { pieceId, row, col, byUserId }`（自チームroom）
+  - 受信: `piece-place-denied { pieceId, reason }`（本人宛）
+  - 受信: `progress-update { placedByTeam }`（public）
+  - 受信: `timer-sync { nowIso, startedAt, durationMs, remainingMs }`（public）
+  - 受信: `game-end { reason, winnerTeamId, scores, finishedAt }`（public）
+- ライフサイクル（簡略）:
+  1) `join-game` 送信後、サーバから `game-init` → 直後に `state-sync`
+  2) 全員接続で `game-start` 受信
+  3) 以後、`piece-place` 送信→ 成功で `piece-placed`、失敗は `piece-place-denied`
+  4) 進捗は `progress-update`、残時間は `timer-sync` で更新
+  5) 終了は `game-end` 一回のみ（冪等ガード）
+- 最小ハンドラ例（概念）:
+
+```ts
+// frontend/src/features/game/handlers.ts
+import { getSocket } from '@/lib/socket/client';
+import { SOCKET_EVENTS } from '@/features/game/events';
+
+export function mountGameHandlers(store: GameStore, nav: (path: string) => void) {
+  const s = getSocket();
+  const onPlaced = (p: { pieceId:string; row:number; col:number; byUserId:string }) => {
+    store.markPlaced(p.pieceId, p.row, p.col);
+  };
+  const onDenied = (p: { pieceId:string; reason:'invalidCell'|'placed'|'notFound' }) => {
+    store.ui.toast(p.reason === 'invalidCell' ? 'その位置には置けません' : p.reason === 'placed' ? '配置済みです' : 'ピースが見つかりません');
+  };
+  const onProgress = (p: { placedByTeam: Record<string, number> }) => store.setScore(p);
+  const onTimer = (p: { remainingMs:number; startedAt:string|null; durationMs:number|null }) => store.applyTimer(p);
+  const onEnd = (p: { reason:string; winnerTeamId:string|null; scores:Record<string,number> }) => {
+    if (store.ended) return; // 冪等ガード
+    store.finish(p);
+    nav('/result');
+  };
+  s.on(SOCKET_EVENTS.PIECE_PLACED, onPlaced);
+  s.on(SOCKET_EVENTS.PIECE_PLACE_DENIED, onDenied);
+  s.on(SOCKET_EVENTS.PROGRESS_UPDATE, onProgress);
+  s.on(SOCKET_EVENTS.TIMER_SYNC, onTimer as any);
+  s.on(SOCKET_EVENTS.GAME_END, onEnd as any);
+  return () => {
+    s.off(SOCKET_EVENTS.PIECE_PLACED, onPlaced);
+    s.off(SOCKET_EVENTS.PIECE_PLACE_DENIED, onDenied);
+    s.off(SOCKET_EVENTS.PROGRESS_UPDATE, onProgress);
+    s.off(SOCKET_EVENTS.TIMER_SYNC, onTimer as any);
+    s.off(SOCKET_EVENTS.GAME_END, onEnd as any);
+  };
+}
+
+export function sendPlace(matchId:string, teamId:string, userId:string, pieceId:string, row:number, col:number) {
+  getSocket().emit(SOCKET_EVENTS.PIECE_PLACE, { matchId, teamId, userId, pieceId, row, col });
+}
+```
+
+- 画面側の最小導線:
+  - ピース一覧で1つ選ぶ → 5x5セルをクリック → `sendPlace(...)` を呼ぶ
+  - 受信ハンドラで `markPlaced`/`setScore`/`applyTimer`/`finish` を呼ぶだけで UI を更新
+  - 失敗時（denied）はトースト表示、選択状態は維持し再試行可
+
+- 再同期（ズレ時/復帰時）:
+  - 500ms程度のデバウンスで `request-game-init` を送信（多重防止）
+  - 受信 `state-sync` は全量で上書き（サーバ権威）
+
+- よくある落とし穴（回避策）:
+  - ハンドラの `on/off` 漏れ → `mountGameHandlers()` でクリーンアップを返す
+  - 同時placeの競合 → 先着のみ成功。UIは「占有セルはクリック不可」にして誘発を減らす
+  - 終了イベントの多重反映 → `store.ended` で冪等
+  - 送信の型ずれ → ここにある payload（キー名/型）を厳守
 
 ---
 
