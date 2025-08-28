@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSocket } from "@/lib/socket/client";
 import { MATCHING_EVENTS } from "./events";
-import { useGameActions } from "@/features/game/store";
+import { useGameActions } from "@/features/Game/store";
 
 const MatchingScreen: React.FC = () => {
   const keyframes = `
@@ -41,7 +41,10 @@ const MatchingScreen: React.FC = () => {
     >
       <style dangerouslySetInnerHTML={{ __html: keyframes }} />
 
-      <h1 className="text-4xl font-bold text-white mb-8 drop-shadow-md" style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <h1
+        className="text-4xl font-bold text-white mb-8 drop-shadow-md"
+        style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
+      >
         マッチング中…
       </h1>
 
@@ -64,7 +67,7 @@ export default function Matching() {
   useEffect(() => {
     const s = getSocket();
     const onMatchFound = (p: any) => {
-      if (p && typeof p.matchId === 'string') {
+      if (p && typeof p.matchId === "string") {
         setMatch(p.matchId, p.self, p.partner);
       }
       router.push("/game");
@@ -75,5 +78,4 @@ export default function Matching() {
     };
   }, [router]);
   return <MatchingScreen />;
-};
-
+}
