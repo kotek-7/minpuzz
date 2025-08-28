@@ -123,21 +123,23 @@ const JigsawPuzzle = () => {
     initializePieces();
   }, [initializePieces]);
 
+  // サーバタイマーがある場合はそれを優先して残り時間を表示
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isGameStarted && timeLeft > 0 && !isComplete) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsGameStarted(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    let interval: NodeJS.Timeout | null = null;
+    const tick = () => {
+      const t = (game as any)?.timer as { startedAt: string; durationMs: number } | null;
+      if (!t) return;
+      const now = Date.now();
+      const started = Date.parse(t.startedAt);
+      const remain = Math.max(0, Math.floor((t.durationMs - (now - started)) / 1000));
+      setTimeLeft(remain);
+    };
+    if ((game as any)?.timer) {
+      tick();
+      interval = setInterval(tick, 1000);
     }
-    return () => clearInterval(interval);
-  }, [isGameStarted, timeLeft, isComplete]);
+    return () => { if (interval) clearInterval(interval); };
+  }, [(game as any)?.timer]);
 
   useEffect(() => {
     const correctPieces = pieces.filter((piece) => piece.currentPosition === piece.correctPosition);
@@ -198,6 +200,17 @@ const JigsawPuzzle = () => {
 
   const availablePieces = pieces.filter((piece) => piece.currentPosition === null);
 
+  // 進捗（スコア）
+  const placedByTeam = (game as any)?.score?.placedByTeam || {} as Record<string, number>;
+  const myTeam = teamId || (game as any)?.self?.teamId || '';
+  const myPlaced = placedByTeam[myTeam] || 0;
+  let oppPlaced = 0;
+  if (Object.keys(placedByTeam).length > 0) {
+    for (const [k, v] of Object.entries(placedByTeam)) {
+      if (k !== myTeam) oppPlaced = v as number;
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* コントロールパネル */}
@@ -208,6 +221,11 @@ const JigsawPuzzle = () => {
             <span className="text-2xl font-bold text-teal-600">
               {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
             </span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="font-semibold">進捗</span>
+            <span className="px-2 py-1 rounded bg-teal-50 border border-teal-200">自 {myPlaced}</span>
+            <span className="px-2 py-1 rounded bg-gray-50 border border-gray-200">相手 {oppPlaced}</span>
           </div>
           {isComplete && (
             <div className="flex items-center gap-2 text-green-600">

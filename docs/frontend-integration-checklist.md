@@ -12,9 +12,9 @@
   - `game-init/state-sync` から id対応を保持（UIの選択→serverId へ変換）
 - [x] ユニット5: 送信導線の実装（Puzzle→emit）
   - セルクリックで `emit(PIECE_PLACE, { matchId, teamId, userId, pieceId, row, col })`
-- [ ] ユニット6: 進捗とタイマーのUI反映
+- [x] ユニット6: 進捗とタイマーのUI反映
   - `placedByTeam` 表示、`timer-sync` 反映、終了遷移の冪等
-- [ ] ユニット7: 再同期リカバリ
+- [x] ユニット7: 再同期リカバリ
   - 500ms デバウンスで `request-game-init`、`state-sync` で全量復元
 - [ ] ユニット9: 仕上げ（UXと堅牢化）
   - deniedメッセージ、占有セル無効、on/offのクリーンアップ

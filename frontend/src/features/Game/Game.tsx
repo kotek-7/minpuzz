@@ -67,6 +67,30 @@ export default function Game() {
     };
   }, [hydrateFromInit, applyStateSync, markStarted, markPlaced, setScore, applyTimer, finish, router, game.matchId, teamId, userId, (game as any).ended]);
 
+  // 再同期: 画面復帰や明示操作でサーバから最新の state を取得
+  useEffect(() => {
+    const s = getSocket();
+    let t: any = null;
+    const req = () => {
+      if (!game.matchId || !teamId || !userId) return;
+      s.emit(GAME_EVENTS.REQUEST_GAME_INIT as any, { matchId: game.matchId, teamId, userId });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        clearTimeout(t); t = setTimeout(req, 500);
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility);
+      }
+      if (t) clearTimeout(t);
+    };
+  }, [game.matchId, teamId, userId]);
+
   return (
       <div>
         {/* 接続バナー */}
