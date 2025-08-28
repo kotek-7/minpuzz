@@ -46,7 +46,7 @@ export const Top = () => {
             placeholder="ニックネームを入力"
             value={nickname}
             onChange={(e) => setNick(e.target.value)}
-            className="w-full p-[10px] text-[15px] rounded-[8px] border-2 border-[#007f9e]"
+            className="w-full p-[10px] text-[16px] rounded-[8px] border-2 border-[#007f9e]"
           />
         </div>
 
