@@ -18,7 +18,7 @@ export const TeamNumberInput = () => {
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
     >
       <button onClick={() => router.push('/')} className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
-        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
       </button>
 
       <div className="w-full bg-white border-2 border-[#00bcd4] rounded-xl p-6 text-center shadow-xl">
@@ -69,7 +69,15 @@ export const TeamNumberInput = () => {
               setLoading(false);
             }
           }}
-          className="mt-4 px-8 py-3 bg-[#ffba39] rounded-xl shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-1 border-2 border-[#8a5a00] disabled:bg-gray-300"
+                    
+                  className={`
+          mt-4 px-8 py-3 bg-[#ffba39] rounded-xl max-w-sm  font-bold transition-all duration-150 active:translate-y-1
+          ${
+            joinNumber
+              ? "text-[#4a2c00] bg-[#ffba39] border-2 border-[#8a5a00] shadow-[0_8px_12px_0px_rgba(245,177,42,0.5)] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
+              : "text-gray-500 bg-gray-300 border-2 border-gray-400"
+          }  
+        `}  
         >
           {loading ? "参加中..." : "チームに参加！"}
         </button>
