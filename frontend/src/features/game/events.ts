@@ -3,6 +3,8 @@ export const GAME_EVENTS = {
   GAME_INIT: "game-init",
   STATE_SYNC: "state-sync",
   GAME_START: "game-start",
+  // re-sync
+  REQUEST_GAME_INIT: "request-game-init",
   // in-game (click placement)
   PIECE_PLACE: "piece-place",
   PIECE_PLACED: "piece-placed",
