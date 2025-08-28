@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from 'next/navigation';
+import { createTeam, addTeamMember, type Difficulty } from "@/lib/api/teams";
+import { getNickname, getOrCreateUserId, setTeamId, setTeamNumber } from "@/lib/session/session";
 // 難易度の種類と詳細を定数として定義します。
 const difficulties = [
   { level: "初級", description: "5ピースのパズル。初心者用。", value: "easy" },
@@ -10,8 +12,7 @@ const difficulties = [
   { level: "エクストラ", description: "50ピースのパズル。挑戦してみよう。", value: "extra" },
 ];
 
-//難易度の型を定義します。これにより、型安全性が向上します。
-type Difficulty = "easy" | "normal" | "hard" | "extra";
+// 難易度型は API の型を利用
 
 // DifficultySelection コンポーネントを定義します。
 export default function DifficultySelection() {
@@ -19,6 +20,7 @@ export default function DifficultySelection() {
   //初期値は null で、何も選択されていない状態を表します。
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null);
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
   return (
     <div className="flex min-h-screen flex-col items-center bg-[#FFFFFF]"  style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
       {/* 戻るボタンのコンポーネントです。 */}
@@ -70,13 +72,42 @@ export default function DifficultySelection() {
             : '0px 2px 4px 0px rgba(0, 0, 0, 0.25)' // 非選択時の影
   }}
         //難易度が選択されるまでボタンを無効化します。
-        disabled={!selectedDifficulty}
-        //チーム作成ボタンが押された時
-         onClick={() => {
-          console.log(`チーム作成ボタンが押されました。選択された難易度は: ${selectedDifficulty}`);
-         }}
+        disabled={!selectedDifficulty || loading}
+        // チーム作成ボタン
+        onClick={async () => {
+          if (!selectedDifficulty) return;
+          const nickname = getNickname() || "";
+          if (!nickname.trim()) {
+            alert("トップで名前を入力してください");
+            router.push("/");
+            return;
+          }
+          try {
+            setLoading(true);
+            const userId = getOrCreateUserId();
+            // 難易度は現状APIに影響しないため、maxMembers等に反映しない
+            const res = await createTeam({ createdBy: userId });
+            // 作成者自身もメンバーとして登録（他クライアントの初期フェッチで見えるように）
+            try {
+              await addTeamMember({ teamId: res.teamId, userId });
+            } catch (e) {
+              // 参加失敗は重大なので通知して中断
+              throw e;
+            }
+            setTeamId(res.teamId);
+            setTeamNumber(res.teamNumber);
+            // userIdは初期化しておく（副作用なく）
+            getOrCreateUserId();
+            router.push("/team-waiting");
+          } catch (e: any) {
+            console.error(e);
+            alert(e?.message || "チーム作成に失敗しました");
+          } finally {
+            setLoading(false);
+          }
+        }}
       >
-        これでチームを作る！
+        {loading ? "作成中..." : "これでチームを作る！"}
       </button>
 
       {/* 下部の波型デザインのコンポーネントです。 */}

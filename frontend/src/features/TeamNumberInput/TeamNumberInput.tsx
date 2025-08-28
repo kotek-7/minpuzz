@@ -2,16 +2,22 @@
 
 import { useState } from "react";
 import React from "react";
+import { useRouter } from "next/navigation";
+import { addTeamMember, resolveTeamNumber } from "@/lib/api/teams";
+import { getNickname, getOrCreateUserId, setTeamId, setTeamNumber } from "@/lib/session/session";
 
 export const TeamNumberInput = () => {
   const [joinNumber, setJoinNumber] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   return (
     <div
       className="flex flex-col justify-center items-center min-h-screen bg-white px-5"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
     >
-      <button className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
+      <button onClick={() => router.push('/')} className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
       </button>
 
@@ -37,11 +43,35 @@ export const TeamNumberInput = () => {
             className="w-full p-2 rounded-lg border-2 border-[#007f9e]"
           />
         </div>
-
+        {error && <p className="text-red-600 mb-2">{error}</p>}
         <button
-          className="mt-4 px-8 py-3 bg-[#ffba39] rounded-xl shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-1 border-2 border-[#8a5a00]"
+          disabled={!joinNumber || loading}
+          onClick={async () => {
+            setError(null);
+            const nickname = getNickname() || "";
+            if (!nickname.trim()) {
+              alert("トップで名前を入力してください");
+              router.push("/");
+              return;
+            }
+            try {
+              setLoading(true);
+              const resolved = await resolveTeamNumber(joinNumber.trim());
+              const userId = getOrCreateUserId();
+              await addTeamMember({ teamId: resolved.teamId, userId });
+              setTeamId(resolved.teamId);
+              setTeamNumber(resolved.teamNumber);
+              router.push("/team-waiting");
+            } catch (e: any) {
+              console.error(e);
+              setError(e?.message || "参加に失敗しました");
+            } finally {
+              setLoading(false);
+            }
+          }}
+          className="mt-4 px-8 py-3 bg-[#ffba39] rounded-xl shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-1 border-2 border-[#8a5a00] disabled:bg-gray-300"
         >
-          チームに参加！
+          {loading ? "参加中..." : "チームに参加！"}
         </button>
       </div>
 

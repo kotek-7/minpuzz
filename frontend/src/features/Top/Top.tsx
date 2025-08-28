@@ -2,11 +2,14 @@
 
 import React from "react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { setNickname, getNickname } from "@/lib/session/session";
 import { Logo } from "./Logo";
 
 
 export const Top = () => {
-  const [nickname, setNickname] = useState("");
+  const router = useRouter();
+  const [nickname, setNick] = useState(getNickname() || "");
 
   return (
     <div className="h-screen w-full mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]" style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
@@ -27,7 +30,7 @@ export const Top = () => {
             id="nickname"
             placeholder="ニックネームを入力"
             value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
+            onChange={(e) => setNick(e.target.value)}
             className="w-full p-[10px] text-[15px] rounded-[8px] border-2 border-[#007f9e]"
           />
         </div>
@@ -35,7 +38,11 @@ export const Top = () => {
 
         <div className="flex justify-center gap-[20px]">
           <button
-            onClick={() => console.log("チームを作る")}
+            onClick={() => {
+              if (!nickname.trim()) return alert("名前を入力してください");
+              setNickname(nickname.trim());
+              router.push("/difficulty-selection");
+            }}
             className="flex flex-col items-center min-w-[150px] p-[10px] text-[15px] font-bold rounded-[12px] text-[#4a2c00] bg-[#ffba39] border-2 border-[#8a5a00] shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
           >
             <svg
@@ -51,7 +58,11 @@ export const Top = () => {
           </button>
 
           <button
-            onClick={() => console.log("チームに参加")}
+            onClick={() => {
+              if (!nickname.trim()) return alert("名前を入力してください");
+              setNickname(nickname.trim());
+              router.push("/team-number-input");
+            }}
             className="flex flex-col items-center min-w-[150px] p-[10px] text-[15px] font-bold rounded-[12px] text-[#4a2c00] bg-[#ffba39] border-2 border-[#8a5a00] shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-[5px]"
           >
             <svg
