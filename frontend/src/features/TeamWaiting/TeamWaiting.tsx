@@ -9,6 +9,7 @@ import { startMatching } from "@/lib/api/teams";
 import { getSocket } from "@/lib/socket/client";
 import { MATCHING_EVENTS } from "@/features/matching/events";
 import { useGameActions } from "@/features/game/store";
+import { playSound } from "@/features/sound";
 
 export const TeamWaiting = () => {
   const router = useRouter();
@@ -58,7 +59,9 @@ export const TeamWaiting = () => {
       className="relative flex flex-col justify-center items-center min-h-screen px-5 pb-20"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
       <div className="absolute inset-0 bg-white -z-20" />
-      <button onClick={() => router.push('/')} className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
+      <button onClick={() => {
+        playSound("/sounds/select_back.mp3")
+        router.push('/')}} className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z"/></svg>
       </button>
         <h2 className="text-[23px] text-black font-bold  mb-2 text-[#007f9e] text-center">メンバーを待機中…</h2>        
@@ -97,6 +100,7 @@ export const TeamWaiting = () => {
           className="mt-5 px-8 py-3 bg-[#ffba39] font-bold rounded-xl shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-1 border-2 border-[#8a5a00] disabled:bg-gray-300"
           disabled={!teamId || !userId || loading}
           onClick={async () => {
+            playSound("/sounds/select.mp3")
             if (!teamId || !userId) return;
             try {
               setLoading(true);

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setNickname, getNickname } from "@/lib/session/session";
 import { Logo } from "./Logo";
+import { playSound } from "@/features/sound";
 
 export const Top = () => {
   const router = useRouter();
@@ -53,6 +54,7 @@ export const Top = () => {
         <div className="flex justify-center gap-[20px]">
           <button
             onClick={() => {
+              playSound("/sounds/select.mp3");
               if (!nickname.trim()) {
                 setShowNicknameAlert(true);
                 return;
@@ -77,6 +79,7 @@ export const Top = () => {
 
           <button
             onClick={() => {
+              playSound("/sounds/select.mp3");              
               if (!nickname.trim()) {
                 setShowNicknameAlert(true);
                 return;
