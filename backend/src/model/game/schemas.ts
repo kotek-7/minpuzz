@@ -94,16 +94,17 @@ export const PiecePlacePayloadSchema = z.object({
   teamId: z.string().min(1),
   userId: z.string().min(1),
   pieceId: z.string().min(1),
-  row: z.number().int().nonnegative(),
-  col: z.number().int().nonnegative(),
+  // クリック配置: 盤面は5x5固定のため 0..4 に制限
+  row: z.number().int().min(0).max(4),
+  col: z.number().int().min(0).max(4),
   x: z.number().finite(),
   y: z.number().finite(),
 });
 
 export const PiecePlacedPayloadSchema = z.object({
   pieceId: z.string().min(1),
-  row: z.number().int().nonnegative(),
-  col: z.number().int().nonnegative(),
+  row: z.number().int().min(0).max(4),
+  col: z.number().int().min(0).max(4),
   byUserId: z.string().min(1),
 });
 
