@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from 'next/navigation';
-import { createTeam, type Difficulty } from "@/lib/api/teams";
+import { createTeam, addTeamMember, type Difficulty } from "@/lib/api/teams";
 import { getNickname, getOrCreateUserId, setTeamId, setTeamNumber } from "@/lib/session/session";
 // 難易度の種類と詳細を定数として定義します。
 const difficulties = [
@@ -12,8 +12,7 @@ const difficulties = [
   { level: "エクストラ", description: "50ピースのパズル。挑戦してみよう。", value: "extra" },
 ];
 
-//難易度の型を定義します。これにより、型安全性が向上します。
-type Difficulty = "easy" | "normal" | "hard" | "extra";
+// 難易度型は API の型を利用
 
 // DifficultySelection コンポーネントを定義します。
 export default function DifficultySelection() {
@@ -85,7 +84,16 @@ export default function DifficultySelection() {
           }
           try {
             setLoading(true);
-            const res = await createTeam({ nickname: nickname.trim(), difficulty: selectedDifficulty });
+            const userId = getOrCreateUserId();
+            // 難易度は現状APIに影響しないため、maxMembers等に反映しない
+            const res = await createTeam({ createdBy: userId });
+            // 作成者自身もメンバーとして登録（他クライアントの初期フェッチで見えるように）
+            try {
+              await addTeamMember({ teamId: res.teamId, userId });
+            } catch (e) {
+              // 参加失敗は重大なので通知して中断
+              throw e;
+            }
             setTeamId(res.teamId);
             setTeamNumber(res.teamNumber);
             // userIdは初期化しておく（副作用なく）

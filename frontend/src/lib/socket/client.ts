@@ -11,7 +11,7 @@ export function getSocket(): Socket {
   if (typeof window === "undefined") {
     throw new Error("Socket is only available on client side");
   }
-  const url = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+  const url = process.env.NEXT_PUBLIC_API_URL || "";
   sock = io(url, {
     transports: ["websocket"],
     reconnection: true,

@@ -16,8 +16,8 @@ export function isMockMode() {
 }
 
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const base = process.env.NEXT_PUBLIC_API_BASE || "";
-  const url = `${base}${path}`;
+  const base = process.env.NEXT_PUBLIC_API_URL || "";
+  const url = `${base}/v1${path}`;
 
   const init: RequestInit = {
     method: opts.method || "GET",

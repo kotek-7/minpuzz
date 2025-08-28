@@ -58,7 +58,7 @@ export const TeamNumberInput = () => {
               setLoading(true);
               const resolved = await resolveTeamNumber(joinNumber.trim());
               const userId = getOrCreateUserId();
-              await addTeamMember({ teamId: resolved.teamId, userId, nickname: nickname.trim() });
+              await addTeamMember({ teamId: resolved.teamId, userId });
               setTeamId(resolved.teamId);
               setTeamNumber(resolved.teamNumber);
               router.push("/team-waiting");

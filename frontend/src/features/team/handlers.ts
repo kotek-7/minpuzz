@@ -4,6 +4,7 @@ import { getSocket } from "@/lib/socket/client";
 import { SOCKET_EVENTS } from "./events";
 import { useEffect } from "react";
 import { useTeamStoreActions } from "./store";
+import { listTeamMembers } from "@/lib/api/teams";
 
 type MountArgs = {
   teamId: string;
@@ -33,8 +34,24 @@ export function useMountTeamHandlers({ teamId, userId }: MountArgs) {
     s.on(SOCKET_EVENTS.MEMBER_LEFT, onLeft);
     s.on(SOCKET_EVENTS.TEAM_UPDATED, onUpdated);
 
+    // 既存メンバーの初期取得（サーバー側で返さないjoin通知を補う）
+    listTeamMembers(teamId)
+      .then((res) => {
+        for (const m of res.members) {
+          upsertMember({ userId: m.userId, socketId: m.socketId, joinedAt: m.joinedAt });
+        }
+        // 件数は team-updated が来れば上書きされる
+        setMemberCount(res.members.length);
+      })
+      .catch(() => {
+        // サイレント失敗（サーバ未実装でも致命でない）
+      });
+
     // 入室通知
     s.emit(SOCKET_EVENTS.JOIN_TEAM, { teamId, userId });
+    // 自分自身が server から member-joined を受けない場合に備えて、即時に自分を反映
+    // socketId は取得可能なら付与
+    upsertMember({ userId, socketId: (s as any).id, joinedAt: new Date().toISOString() });
 
     return () => {
       s.emit(SOCKET_EVENTS.LEAVE_TEAM, { teamId, userId });
@@ -44,4 +61,3 @@ export function useMountTeamHandlers({ teamId, userId }: MountArgs) {
     };
   }, [teamId, userId, upsertMember, removeMember, setMemberCount]);
 }
-

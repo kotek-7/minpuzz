@@ -1,6 +1,7 @@
 "use client";
 
-// セッション情報を localStorage に保持・取得するユーティリティ。
+// セッション情報の保持・取得ユーティリティ。
+// userId は sessionStorage、その他は localStorage を使用します。
 // SSRガードを行い、クライアント側でのみ永続化します。
 
 const KEY_USER_ID = "mp:userId";
@@ -13,12 +14,13 @@ function isClient() {
 }
 
 export function getOrCreateUserId(): string {
-  if (!isClient()) return "anonymous";
-  let id = localStorage.getItem(KEY_USER_ID);
+  // userId は sessionStorage 管理（タブ/セッション単位）
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") return "anonymous";
+  let id = sessionStorage.getItem(KEY_USER_ID);
   if (!id) {
     const rnd = (globalThis.crypto as any)?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     id = String(rnd);
-    localStorage.setItem(KEY_USER_ID, id);
+    sessionStorage.setItem(KEY_USER_ID, id);
   }
   return id;
 }
@@ -58,4 +60,3 @@ export function clearTeam() {
   localStorage.removeItem(KEY_TEAM_ID);
   localStorage.removeItem(KEY_TEAM_NUMBER);
 }
-
