@@ -4,7 +4,7 @@
 
 - [x] ユニット1: イベント定数の拡張（features/game/events.ts）
   - 追加: `PIECE_PLACE`, `PIECE_PLACED`, `PIECE_PLACE_DENIED`, `PROGRESS_UPDATE`, `TIMER_SYNC`, `GAME_END`
-- [ ] ユニット2: ゲームストアAPIの拡張（features/game/store.ts）
+- [x] ユニット2: ゲームストアAPIの拡張（features/game/store.ts）
   - 追加: `markPlaced`, `setScore`, `applyTimer`, `finish(…)+ended`
 - [ ] ユニット3: 受信ハンドラのマウント（Game.tsx or handlers.ts）
   - on `PIECE_PLACED/PIECE_PLACE_DENIED/PROGRESS_UPDATE/TIMER_SYNC/GAME_END`
