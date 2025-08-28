@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { getOrCreateUserId, getTeamId, getTeamNumber } from "@/lib/session/session";
 import { useMountTeamHandlers } from "@/features/team/handlers";
 import { useTeamState } from "@/features/team/store";
+import { startMatching } from "@/lib/api/teams";
+import { getSocket } from "@/lib/socket/client";
+import { MATCHING_EVENTS } from "@/features/matching/events";
 
 export const TeamWaiting = () => {
   const router = useRouter();
@@ -12,6 +15,7 @@ export const TeamWaiting = () => {
   const teamNumber = getTeamNumber();
   const userId = getOrCreateUserId();
   const { members, memberCount } = useTeamState();
+  const [loading, setLoading] = React.useState(false);
 
   useEffect(() => {
     if (!teamId || !userId) {
@@ -20,6 +24,27 @@ export const TeamWaiting = () => {
   }, [teamId, userId, router]);
 
   useMountTeamHandlers({ teamId: teamId || "", userId });
+
+  // マッチング遷移/成立をサーバ通知で受け取り、レースを避ける
+  useEffect(() => {
+    if (!teamId) return;
+    const s = getSocket();
+    const onNavigate = (p: { teamId: string }) => {
+      if (p.teamId !== teamId) return;
+      router.push("/matching");
+    };
+    const onMatchFound = (_p: any) => {
+      // navigate-to-matching と match-found がほぼ同時に来る場合に備え、
+      // 待機画面でも直接ゲームへ遷移できるようにする
+      router.push("/game");
+    };
+    s.on(MATCHING_EVENTS.NAVIGATE_TO_MATCHING, onNavigate);
+    s.on(MATCHING_EVENTS.MATCH_FOUND, onMatchFound);
+    return () => {
+      s.off(MATCHING_EVENTS.NAVIGATE_TO_MATCHING, onNavigate);
+    s.off(MATCHING_EVENTS.MATCH_FOUND, onMatchFound);
+    };
+  }, [router, teamId]);
 
   const memberNames = members.map((m) => m.userId.slice(0, 6));
 
@@ -62,10 +87,25 @@ export const TeamWaiting = () => {
           })}
         </div>
 
-        <button className="mt-5 px-8 py-3 bg-[#ffba39] font-bold rounded-xl shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-1 border-2 border-[#8a5a00]"
-          onClick={() => alert('次段でJOIN_MATCHING_QUEUEを実装予定です')}
+        <button
+          className="mt-5 px-8 py-3 bg-[#ffba39] font-bold rounded-xl shadow-[0_4px_8px_#ffba39] active:shadow-[0_2px_4px_#ffba39] active:translate-y-1 border-2 border-[#8a5a00] disabled:bg-gray-300"
+          disabled={!teamId || !userId || loading}
+          onClick={async () => {
+            if (!teamId || !userId) return;
+            try {
+              setLoading(true);
+              await startMatching(teamId);
+              const s = getSocket();
+              s.emit(MATCHING_EVENTS.JOIN_MATCHING_QUEUE, { teamId, userId });
+            } catch (e: any) {
+              console.error(e);
+              alert(e?.message || "マッチング開始に失敗しました");
+            } finally {
+              setLoading(false);
+            }
+          }}
         >
-          マッチング開始！
+          {loading ? "開始中…" : "マッチング開始！"}
         </button>
       </div>
       <p className="leading-relaxed text-center mt-5">
