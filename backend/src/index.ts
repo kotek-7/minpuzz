@@ -5,6 +5,8 @@ import { registerTeamHandler } from "./socket/teamSocket.js";
 import { createServer } from "http";
 import { getRedisClient, connectRedis } from "./repository/redisClientImpl.js";
 
+console.log("CORS_ORIGIN:", env.CORS_ORIGIN);
+
 const port = env.PORT;
 
 // 本物のRedisクライアントを使用
