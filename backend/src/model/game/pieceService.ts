@@ -1,12 +1,12 @@
 import { err, ok, Result } from 'neverthrow';
 import type { GameStore, StoreError } from '../../repository/gameStore.js';
 import type { Piece } from './types.js';
-import { canPlace, ensureExists, ensureHolder, ensureNotPlaced, withHolder, withPosition } from './pieceGuards.js';
+import { canPlace, ensureExists, ensureNotPlaced, withPosition } from './pieceGuards.js';
 
 export type GrabError = 'notFound' | 'placed' | 'locked' | 'io';
 export type MoveError = 'notFound' | 'placed' | 'notHolder' | 'io';
 export type ReleaseError = 'notFound' | 'placed' | 'notHolder' | 'io';
-export type PlaceError = 'notFound' | 'placed' | 'notHolder' | 'invalidCell' | 'io';
+export type PlaceError = 'notFound' | 'placed' | 'invalidCell' | 'io';
 
 export async function grab(
   store: GameStore,
@@ -72,14 +72,20 @@ export async function place(
   store: GameStore,
   params: { matchId: string; pieceId: string; userId: string; row: number; col: number; x: number; y: number }
 ): Promise<Result<Piece, PlaceError>> {
+  // クリック配置版: holder/lock なし、セル占有チェックのみ
   const pieceRes = await store.getPiece(params.matchId, params.pieceId);
   if (pieceRes.isErr()) return err('io');
-  const guarded = canPlace(pieceRes.value, params.userId, params.row, params.col);
+  const guarded = canPlace(pieceRes.value, params.row, params.col);
   if (guarded.isErr()) return err(guarded.error);
-  const next: Piece = { ...guarded.value, x: params.x, y: params.y, placed: true, row: params.row, col: params.col };
-  const set = await store.setPiece(params.matchId, next);
-  if (set.isErr()) return err('io');
-  const rel = await store.releasePieceLock(params.matchId, params.pieceId, params.userId);
-  if (rel.isErr()) return err(rel.error === 'conflict' ? 'notHolder' : 'io');
+
+  // セル占有チェック（同一row/colの配置済みピースが存在しないこと）
+  const listR = await store.listPieces(params.matchId);
+  if (listR.isErr()) return err('io');
+  const occupied = listR.value.some((p) => p.placed && p.row === params.row && p.col === params.col);
+  if (occupied) return err('invalidCell');
+
+  const next: Piece = { ...guarded.value, placed: true, row: params.row, col: params.col };
+  const setR = await store.setPiece(params.matchId, next);
+  if (setR.isErr()) return err('io');
   return ok(next);
 }
