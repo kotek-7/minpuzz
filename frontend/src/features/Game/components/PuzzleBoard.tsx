@@ -8,6 +8,8 @@ interface PuzzleBoardProps {
   selectedPieceId: string | null;
   pieceToDisplayIndexMap: Record<string, number>;
   occupiedCells: Set<string>;
+  onCellClick: (row: number, col: number) => void; // 空セルクリック時の配置処理
+  onPlacedPieceClick: (pieceId: string) => void; // 配置済みピースクリック時の選択処理
 }
 
 export default function PuzzleBoard({
@@ -15,7 +17,9 @@ export default function PuzzleBoard({
   pieces,
   selectedPieceId,
   pieceToDisplayIndexMap,
-  occupiedCells
+  occupiedCells,
+  onCellClick,
+  onPlacedPieceClick
 }: PuzzleBoardProps) {
   if (!board) {
     return (
@@ -50,44 +54,81 @@ export default function PuzzleBoard({
     const cellKey = `${row}-${col}`;
     const isOccupied = occupiedCells.has(cellKey);
     const canPlace = selectedPieceId && !isOccupied;
+    const selectedPiece = selectedPieceId ? pieces[selectedPieceId] : null;
+    const isMovingSelectedPiece = selectedPiece?.placed && selectedPiece.row === row && selectedPiece.col === col;
+
+    // セルクリック処理
+    const handleCellClick = () => {
+      if (cellContent && !isMovingSelectedPiece) {
+        // 配置済みピースをクリック → 選択
+        onPlacedPieceClick(cellContent.pieceId);
+      } else if (canPlace) {
+        // 空きセルクリック → 配置/移動
+        onCellClick(row, col);
+      }
+    };
+
+    // セルスタイルを取得
+    const getCellStyle = (): string => {
+      const baseStyle = "aspect-square border-2 rounded-lg flex items-center justify-center text-lg font-bold transition-all duration-200 cursor-pointer";
+      
+      if (isMovingSelectedPiece) {
+        // 移動対象のピース（選択中の配置済みピース）
+        return `${baseStyle} bg-yellow-100 border-yellow-400 ring-4 ring-yellow-300 hover:bg-yellow-200`;
+      } else if (cellContent) {
+        // 他の配置済みピース
+        return `${baseStyle} bg-green-100 border-green-400 hover:bg-green-200`;
+      } else if (canPlace) {
+        // 配置可能セル
+        return `${baseStyle} bg-blue-50 border-blue-200 ring-2 ring-blue-200 hover:bg-blue-100`;
+      } else if (isOccupied) {
+        // 配置不可セル
+        return `${baseStyle} bg-red-50 border-red-300`;
+      } else {
+        // 通常の空きセル（選択ピースなし）
+        return `${baseStyle} bg-white border-gray-300`;
+      }
+    };
+
+    // ツールチップテキストを取得
+    const getTooltipText = (): string => {
+      if (isMovingSelectedPiece) {
+        return `選択中のピース ${cellContent!.displayIndex} - クリックで選択解除`;
+      } else if (cellContent) {
+        return `ピース ${cellContent.displayIndex} - クリックで選択`;
+      } else if (canPlace) {
+        const action = selectedPiece?.placed ? '移動' : '配置';
+        return `${action}可能 - クリックでピース ${pieceToDisplayIndexMap[selectedPieceId!]}を${action}`;
+      } else if (isOccupied) {
+        return '配置不可';
+      } else {
+        return '空きセル';
+      }
+    };
 
     return (
       <div
         key={cellKey}
-        className={`
-          aspect-square border-2 border-gray-300 rounded-lg flex items-center justify-center
-          text-lg font-bold transition-all duration-200
-          ${cellContent 
-            ? 'bg-green-100 border-green-400' 
-            : isOccupied 
-              ? 'bg-red-50 border-red-300' 
-              : canPlace
-                ? 'bg-blue-50 border-blue-200'
-                : 'bg-white'
-          }
-          ${selectedPieceId && canPlace ? 'ring-2 ring-blue-200' : ''}
-        `}
-        title={
-          cellContent 
-            ? `ピース ${cellContent.displayIndex}` 
-            : canPlace 
-              ? '配置可能' 
-              : isOccupied 
-                ? '配置済み' 
-                : ''
-        }
+        className={getCellStyle()}
+        title={getTooltipText()}
+        onClick={handleCellClick}
       >
         {cellContent && (
-          <div className="text-center">
+          <div className="text-center pointer-events-none">
             <div className="text-xs text-gray-600 mb-1">ピース</div>
-            <div className="text-xl text-green-600">{cellContent.displayIndex}</div>
+            <div className={`text-xl ${isMovingSelectedPiece ? 'text-yellow-600' : 'text-green-600'}`}>
+              {cellContent.displayIndex}
+            </div>
+            {isMovingSelectedPiece && (
+              <div className="text-xs text-yellow-600 mt-1">選択中</div>
+            )}
           </div>
         )}
         {!cellContent && canPlace && (
-          <div className="text-3xl text-blue-400 opacity-60">+</div>
+          <div className="text-3xl text-blue-400 opacity-60 pointer-events-none">+</div>
         )}
         {!cellContent && !canPlace && selectedPieceId && isOccupied && (
-          <div className="text-2xl text-red-400 opacity-60">×</div>
+          <div className="text-2xl text-red-400 opacity-60 pointer-events-none">×</div>
         )}
       </div>
     );
@@ -99,7 +140,13 @@ export default function PuzzleBoard({
         <h2 className="text-xl font-bold text-gray-800">パズル盤面 ({rows}×{cols})</h2>
         {selectedPieceId && (
           <p className="text-sm text-blue-600 mt-1">
-            ピース {pieceToDisplayIndexMap[selectedPieceId] || '?'} が選択中
+            ピース {pieceToDisplayIndexMap[selectedPieceId] || '?'} 
+            {pieces[selectedPieceId]?.placed ? ' (配置済み - 移動可能)' : ' (未配置 - 配置可能)'} が選択中
+          </p>
+        )}
+        {!selectedPieceId && (
+          <p className="text-sm text-gray-500 mt-1">
+            ピースを選択してから盤面をクリックしてください
           </p>
         )}
       </div>
@@ -117,7 +164,10 @@ export default function PuzzleBoard({
       </div>
       
       <div className="mt-3 text-xs text-gray-500 text-center">
-        <div>✓ 緑: 配置済み | + 青: 配置可能 | × 赤: 配置不可</div>
+        <div className="space-y-1">
+          <div>✓ 緑: 配置済み（クリックで選択） | ⚡ 黄: 選択中（クリックで解除）</div>
+          <div>+ 青: 配置/移動可能 | × 赤: 配置不可</div>
+        </div>
       </div>
     </div>
   );

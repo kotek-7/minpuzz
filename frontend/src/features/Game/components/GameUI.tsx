@@ -61,6 +61,13 @@ export interface GameUIProps {
     toasts: Array<{id: string; message: string; type: 'error' | 'success' | 'info'}>;
   };
   
+  // アクションハンドラー
+  actions: {
+    onPieceSelect: (pieceId: string) => void;
+    onCellClick: (row: number, col: number) => void;
+    onPlacedPieceClick: (pieceId: string) => void;
+  };
+  
   // 計算済みデータ
   computedData: {
     pieceToDisplayIndexMap: Record<string, number>;
@@ -71,7 +78,7 @@ export interface GameUIProps {
   };
 }
 
-export default function GameUI({ gameState, sessionInfo, uiState, computedData }: GameUIProps) {
+export default function GameUI({ gameState, sessionInfo, uiState, computedData, actions }: GameUIProps) {
   
   // 必要なパラメータチェック
   if (!sessionInfo) {
@@ -170,6 +177,8 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData }
               selectedPieceId={uiState.selectedPieceId}
               pieceToDisplayIndexMap={computedData.pieceToDisplayIndexMap}
               occupiedCells={computedData.occupiedCells}
+              onCellClick={actions.onCellClick}
+              onPlacedPieceClick={actions.onPlacedPieceClick}
             />
           </div>
           
@@ -180,6 +189,7 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData }
               selectedPieceId={uiState.selectedPieceId}
               pieceToDisplayIndexMap={computedData.pieceToDisplayIndexMap}
               season="spring"
+              onPieceSelect={actions.onPieceSelect}
             />
           </div>
         </div>
