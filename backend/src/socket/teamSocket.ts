@@ -234,18 +234,30 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
 
       if (joinQueueResult.value.type === "found") {
         const { matchId, self, partner } = joinQueueResult.value;
-        const matchFoundPayload: MatchFoundPayload = {
+        const timestamp = new Date().toISOString();
+
+        // 各チーム向けに個別のペイロードを作成
+        const selfTeamPayload: MatchFoundPayload = {
           matchId,
           self: { teamId: self.teamId, memberCount: self.memberCount },
           partner: { teamId: partner.teamId, memberCount: partner.memberCount },
-          timestamp: new Date().toISOString(),
+          timestamp,
+        };
+
+        const partnerTeamPayload: MatchFoundPayload = {
+          matchId,
+          self: { teamId: partner.teamId, memberCount: partner.memberCount },   // 逆転
+          partner: { teamId: self.teamId, memberCount: self.memberCount },      // 逆転
+          timestamp,
         };
 
         const selfRoom = getTeamRoom(self.teamId);
         const partnerRoom = getTeamRoom(partner.teamId);
         console.log(`Match found ${matchId}: ${self.teamId} vs ${partner.teamId}`);
-        io.to(selfRoom).emit(SOCKET_EVENTS.MATCH_FOUND, matchFoundPayload);
-        io.to(partnerRoom).emit(SOCKET_EVENTS.MATCH_FOUND, matchFoundPayload);
+        
+        // 各チームに正しいペイロードを送信
+        io.to(selfRoom).emit(SOCKET_EVENTS.MATCH_FOUND, selfTeamPayload);
+        io.to(partnerRoom).emit(SOCKET_EVENTS.MATCH_FOUND, partnerTeamPayload);
       }
     } catch (error) {
       console.error(`Error joining matching queue:`, error);
