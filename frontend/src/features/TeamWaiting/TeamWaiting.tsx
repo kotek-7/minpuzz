@@ -25,7 +25,7 @@ export const TeamWaiting = () => {
 
   useMountTeamHandlers({ teamId: teamId || "", userId });
 
-  // マッチング画面への遷移をサーバ通知で受け取る
+  // マッチング遷移/成立をサーバ通知で受け取り、レースを避ける
   useEffect(() => {
     if (!teamId) return;
     const s = getSocket();
@@ -33,9 +33,16 @@ export const TeamWaiting = () => {
       if (p.teamId !== teamId) return;
       router.push("/matching");
     };
+    const onMatchFound = (_p: any) => {
+      // navigate-to-matching と match-found がほぼ同時に来る場合に備え、
+      // 待機画面でも直接ゲームへ遷移できるようにする
+      router.push("/game");
+    };
     s.on(MATCHING_EVENTS.NAVIGATE_TO_MATCHING, onNavigate);
+    s.on(MATCHING_EVENTS.MATCH_FOUND, onMatchFound);
     return () => {
       s.off(MATCHING_EVENTS.NAVIGATE_TO_MATCHING, onNavigate);
+    s.off(MATCHING_EVENTS.MATCH_FOUND, onMatchFound);
     };
   }, [router, teamId]);
 

@@ -36,27 +36,27 @@ export function setNickname(nickname: string) {
 }
 
 export function getTeamId(): string | null {
-  if (!isClient()) return null;
-  return localStorage.getItem(KEY_TEAM_ID);
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") return null;
+  return sessionStorage.getItem(KEY_TEAM_ID);
 }
 
 export function setTeamId(teamId: string) {
-  if (!isClient()) return;
-  localStorage.setItem(KEY_TEAM_ID, teamId);
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") return;
+  sessionStorage.setItem(KEY_TEAM_ID, teamId);
 }
 
 export function getTeamNumber(): string | null {
-  if (!isClient()) return null;
-  return localStorage.getItem(KEY_TEAM_NUMBER);
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") return null;
+  return sessionStorage.getItem(KEY_TEAM_NUMBER);
 }
 
 export function setTeamNumber(teamNumber: string) {
-  if (!isClient()) return;
-  localStorage.setItem(KEY_TEAM_NUMBER, teamNumber);
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") return;
+  sessionStorage.setItem(KEY_TEAM_NUMBER, teamNumber);
 }
 
 export function clearTeam() {
-  if (!isClient()) return;
-  localStorage.removeItem(KEY_TEAM_ID);
-  localStorage.removeItem(KEY_TEAM_NUMBER);
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") return;
+  sessionStorage.removeItem(KEY_TEAM_ID);
+  sessionStorage.removeItem(KEY_TEAM_NUMBER);
 }
