@@ -84,7 +84,27 @@ const JigsawPuzzle = () => {
   const [timeLeft, setTimeLeft] = useState<number>(120);
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
   const [selectedPieceId, setSelectedPieceId] = useState<number | null>(null);
-  const [hoveredPieceId, setHoveredPieceId] = useState<number | null>(null);
+  const [glowPieceId, setGlowPieceId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.innerHTML = `
+    @keyframes glowFade {
+      0% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.5);
+      }
+    }
+  `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
 
   const initializePieces = useCallback(() => {
@@ -138,6 +158,12 @@ const JigsawPuzzle = () => {
   }, [pieces]);
 
   const handleDrop = (position: number, pieceId: number) => {
+    setGlowPieceId(pieceId); // 発光対象を記録
+
+    setTimeout(() => {
+      setGlowPieceId(null); // 0.5秒後に消す
+    }, 500);
+
     const newPieces = pieces.map((piece) => {
       if (piece.id === pieceId) {
         if (piece.currentPosition !== null) {
@@ -218,17 +244,38 @@ const JigsawPuzzle = () => {
                   {piece ? (
                     (() => {
                       const isFocused = selectedPieceId === piece.id;
+                      const isGlowing = glowPieceId === piece.id;
 
                       return (
                         <div
                           onClick={() => handlePieceSelect(piece.id)}
                           className={`w-full h-full relative rounded-lg transition-all overflow-visible flex items-center justify-center
-          ${isFocused ? 'z-50 scale-[1.2] shadow-lg' : ''}
-        `}
+                            ${isFocused ? 'z-50 scale-[1.2] shadow-lg' : ''}
+                          `}
                           style={{
                             transition: "transform 0.3s ease, box-shadow 0.3s ease",
                           }}
                         >
+                        
+                          {isGlowing && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                height: "100%",
+                                borderRadius: "12px",
+                                boxShadow: "0 0 20px 8px rgba(74,226,243,0.6)",
+                                opacity: 1,
+                                transform: "scale(1)",
+                                animation: "glowFade 0.5s ease-out forwards",
+                                pointerEvents: "none",
+                                zIndex: 10,
+                              }}
+                            />
+                          )}
+
                           <img
                             src={piece.imageUrl || "/placeholder.svg"}
                             alt={`ピース ${piece.id}`}
@@ -257,33 +304,33 @@ const JigsawPuzzle = () => {
             style={{ maxHeight: `calc(100vh - 550px)` }}
           >
             {availablePieces.map((piece) => {
-  const isFocused = selectedPieceId === piece.id;
+              const isFocused = selectedPieceId === piece.id;
 
-  return (
-    <div
-      key={piece.id}
-      onClick={() => handlePieceSelect(piece.id)}
-      className={`aspect-square rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center relative
-        ${isFocused
-          ? 'z-50 scale-[1.2] shadow-lg overflow-visible p-0'
-          : 'overflow-hidden p-1 border-2 border-[#2EAFB9] hover:border-[#27A2AA] hover:bg-[#F0FDFA] hover:shadow-md'}
-      `}
-      style={{
-        transition: "transform 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease",
-      }}
-    >
-      <img
-        src={piece.imageUrl || "/placeholder.svg"}
-        alt={`ピース ${piece.id}`}
-        className="w-full h-full object-cover pointer-events-none rounded"
-        style={{
-          transform: `scale(${DISPLAY_SCALE})`,
-          transformOrigin: "center",
-        }}
-      />
-    </div>
-  );
-})}
+              return (
+                <div
+                  key={piece.id}
+                  onClick={() => handlePieceSelect(piece.id)}
+                  className={`aspect-square rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center relative
+                    ${isFocused
+                      ? 'z-50 scale-[1.2] shadow-lg overflow-visible p-0'
+                      : 'overflow-hidden p-1 border-2 border-[#2EAFB9] hover:border-[#27A2AA] hover:bg-[#F0FDFA] hover:shadow-md'}
+                  `}
+                  style={{
+                    transition: "transform 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease",
+                  }}
+                >
+                  <img
+                    src={piece.imageUrl || "/placeholder.svg"}
+                    alt={`ピース ${piece.id}`}
+                    className="w-full h-full object-cover pointer-events-none rounded"
+                    style={{
+                      transform: `scale(${DISPLAY_SCALE})`,
+                      transformOrigin: "center",
+                    }}
+                  />
+                </div>
+              );
+            })}
             {availablePieces.length === 0 && (
               <div className="text-center text-gray-500 py-8">
                 すべてのピースが配置されました
