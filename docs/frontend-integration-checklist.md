@@ -10,7 +10,7 @@
   - on `PIECE_PLACED/PIECE_PLACE_DENIED/PROGRESS_UPDATE/TIMER_SYNC/GAME_END`
 - [x] ユニット4: サーバ pieceId マッピングの用意
   - `game-init/state-sync` から id対応を保持（UIの選択→serverId へ変換）
-- [ ] ユニット5: 送信導線の実装（Puzzle→emit）
+- [x] ユニット5: 送信導線の実装（Puzzle→emit）
   - セルクリックで `emit(PIECE_PLACE, { matchId, teamId, userId, pieceId, row, col })`
 - [ ] ユニット6: 進捗とタイマーのUI反映
   - `placedByTeam` 表示、`timer-sync` 反映、終了遷移の冪等

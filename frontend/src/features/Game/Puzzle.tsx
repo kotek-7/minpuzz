@@ -6,6 +6,10 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 import { useState, useEffect, useCallback } from "react";
+import { getSocket } from "@/lib/socket/client";
+import { GAME_EVENTS } from "@/features/game/events";
+import { useGameActions, useGameState } from "@/features/game/store";
+import { getOrCreateUserId, getTeamId } from "@/lib/session/session";
 import { Trophy, Clock } from "lucide-react";
 
 // Button Component
@@ -85,6 +89,12 @@ const JigsawPuzzle = () => {
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
   const [selectedPieceId, setSelectedPieceId] = useState<number | null>(null);
   const [hoveredPieceId, setHoveredPieceId] = useState<number | null>(null);
+
+  // game integration
+  const game = useGameState();
+  const { getPieceIdByDisplayIndex, isCellOccupied } = useGameActions();
+  const teamId = getTeamId();
+  const userId = getOrCreateUserId();
 
 
   const initializePieces = useCallback(() => {
@@ -170,6 +180,18 @@ const JigsawPuzzle = () => {
 
   const handleBoardClick = (position: number) => {
     if (selectedPieceId === null) return;
+    const row = Math.floor(position / 5);
+    const col = position % 5;
+    // バックエンド連携: 既にセルが占有されていれば送信しない
+    if (isCellOccupied(row, col)) {
+      try { window.alert("そのマスは使用中です"); } catch {}
+      return;
+    }
+    const pieceId = getPieceIdByDisplayIndex(selectedPieceId);
+    if (!pieceId || !game.matchId || !teamId || !userId) return;
+    const s = getSocket();
+    s.emit(GAME_EVENTS.PIECE_PLACE, { matchId: game.matchId, teamId, userId, pieceId, row, col });
+    // ローカルUIも即座に反映（最小実装）。サーバ反映後は store 経由で上書きされる想定。
     handleDrop(position, selectedPieceId);
     setSelectedPieceId(null);
   };
