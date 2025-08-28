@@ -21,7 +21,7 @@ export const GameInitPayloadSchema = z.object({
 
 export type GameInitPayload = z.infer<typeof GameInitPayloadSchema>;
 
-// M1: 仕様に基づくダミー初期化データ（固定の6x6、ピースなし）
+// M1: 仕様に基づくダミー初期化データ（固定の5x5、ピースなし）
 export function buildInitPayload(params: { matchId: string; teamId: string; userId: string }): GameInitPayload {
   const payload: GameInitPayload = {
     matchId: params.matchId,

@@ -11,7 +11,7 @@ describe('M6 state sync event schemas', () => {
     const score = ScoreSchema.parse({ placedByTeam: { T: 1 } });
     const timer = TimerSchema.parse({ startedAt: new Date().toISOString(), durationMs: 60000 });
     expect(() => StateSyncPayloadSchema.parse({
-      board: { rows: 6, cols: 6 },
+      board: { rows: 5, cols: 5 },
       pieces: [piece],
       score,
       timer,
@@ -21,7 +21,6 @@ describe('M6 state sync event schemas', () => {
 
   test('state-sync payload schema rejects invalid board', () => {
     const score = { placedByTeam: {} };
-    expect(() => StateSyncPayloadSchema.parse({ board: { rows: 0, cols: 6 }, pieces: [], score, timer: null, matchStatus: 'READY' })).toThrow();
+    expect(() => StateSyncPayloadSchema.parse({ board: { rows: 0, cols: 5 }, pieces: [], score, timer: null, matchStatus: 'READY' })).toThrow();
   });
 });
-
