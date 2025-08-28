@@ -9,6 +9,7 @@ export type Piece = {
   // solution position (正解セル): 配置判定用にサーバ保持
   solRow?: number;
   solCol?: number;
+  season?: string; // 季節情報（spring, summer, autumn, winter）
 };
 
 export type Score = {
