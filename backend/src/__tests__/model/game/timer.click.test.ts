@@ -1,4 +1,4 @@
-import { describe, test, expect } from '@jest/globals';
+
 import { remainingMs } from '../../../model/game/timer.js';
 
 describe('timer (click)', () => {

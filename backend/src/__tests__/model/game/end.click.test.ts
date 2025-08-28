@@ -1,4 +1,4 @@
-import { describe, test, expect } from '@jest/globals';
+
 import { RedisGameStore } from '../../../repository/gameStore.redis.js';
 import { MockRedisClient } from '../../setup/MockRedisClient.js';
 import { checkAllPlaced, completeMatchIfNeeded } from '../../../model/game/endService.js';
