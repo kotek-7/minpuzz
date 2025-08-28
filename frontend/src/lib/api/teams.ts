@@ -44,11 +44,13 @@ export type AddTeamMemberInput = { teamId: string; userId: string; socketId?: st
 export type AddTeamMemberOk = { memberId: string };
 export type TeamMemberPublic = z.infer<typeof TeamMemberSchema>;
 export type ListTeamMembersOk = { members: TeamMemberPublic[] };
+export type StartMatchingOk = { ok: true };
 
 const CreateTeamEnvelope = Envelope(TeamSchema);
 const ResolveTeamEnvelope = Envelope(TeamSchema.nullable());
 const AddMemberEnvelope = Envelope(TeamMemberSchema);
 const MembersEnvelope = Envelope(z.array(TeamMemberSchema));
+const StartMatchingEnvelope = Envelope(TeamSchema);
 
 // モック実装
 function randomId(prefix: string) {
@@ -132,4 +134,15 @@ export async function listTeamMembers(teamId: string): Promise<ListTeamMembersOk
   const parsed = MembersEnvelope.parse(env);
   if (!parsed.success || !parsed.data) throw new Error(parsed.message || parsed.error || "メンバー取得に失敗しました");
   return { members: parsed.data };
+}
+
+export async function startMatching(teamId: string): Promise<StartMatchingOk> {
+  if (isMockMode()) {
+    // モックでは常にOK
+    return { ok: true };
+  }
+  const env = await request<unknown>(`/teams/${encodeURIComponent(teamId)}/startMatching`, { method: "POST" });
+  const parsed = StartMatchingEnvelope.parse(env);
+  if (!parsed.success || !parsed.data) throw new Error(parsed.message || parsed.error || "マッチング開始に失敗しました");
+  return { ok: true };
 }
