@@ -86,7 +86,7 @@ const JigsawPuzzle = () => {
   const [selectedPieceId, setSelectedPieceId] = useState<number | null>(null);
 
   const initializePieces = useCallback(() => {
-    const seasons = ["spring", "summer", "winter"];
+    const seasons = ["spring", "summer", "winter", "autumn"];
     const selectedSeason = seasons[Math.floor(Math.random() * seasons.length)];
     setCurrentSeason(selectedSeason);
 

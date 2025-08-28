@@ -1,9 +1,9 @@
 "use client";
 
 import type React from "react";
-import { useGameActions, useGameState } from "@/features/game/store";
+import { useGameActions, useGameState } from "@/features/Game/store";
 import { getSocket } from "@/lib/socket/client";
-import { GAME_EVENTS } from "@/features/game/events";
+import { GAME_EVENTS } from "@/features/Game/events";
 import { getOrCreateUserId, getTeamId } from "@/lib/session/session";
 import Puzzle from "@/features/Game/Puzzle";
 import { useEffect } from "react";
