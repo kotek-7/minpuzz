@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { playSound } from "@/features/sound";
 import { createTeam, addTeamMember, type Difficulty } from "@/lib/api/teams";
 import { getNickname, getOrCreateUserId, setTeamId, setTeamNumber } from "@/lib/session/session";
 // 難易度の種類と詳細を定数として定義します。
@@ -30,8 +31,10 @@ export default function DifficultySelection() {
       <button
         className="flex absolute top-3 left-3 w-11 h-11 bg-[#2EAFB9] rounded-full justify-center items-center text-white font-bold shadow-[0_2px_4px_gray] active:shadow-none active:translate-y-1"
         style={{ boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)" }}
-        //押された時に戻る
-        onClick={() => router.push("/")}
+        onClick={() => {
+          playSound("/sounds/select_back.mp3");
+          router.push("/");
+        }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3">
           <path d="M640-80 240-480l400-400 71 71-329 329 329 329-71 71Z" />
@@ -47,8 +50,10 @@ export default function DifficultySelection() {
         {difficulties.map((difficulty) => (
           <button
             key={difficulty.value}
-            //ボタンがクリックされたときに、state を更新します。
-            onClick={() => setSelectedDifficulty(difficulty.value as Difficulty)}
+            onClick={() => {
+              playSound("/sounds/select.mp3");
+              setSelectedDifficulty(difficulty.value as Difficulty);
+            }}
             className={`
               w-full rounded-2xl p-4 text-center border-2 border-[#32acb4] 
               ${
@@ -84,6 +89,7 @@ export default function DifficultySelection() {
         disabled={!selectedDifficulty || loading}
         // チーム作成ボタン
         onClick={async () => {
+          playSound("/sounds/select.mp3");
           if (!selectedDifficulty) return;
           const nickname = getNickname() || "";
           if (!nickname.trim()) {
