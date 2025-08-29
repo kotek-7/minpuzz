@@ -1,6 +1,6 @@
 %%{init: {'theme':'default', 'themeVariables': {'primaryColor': '#4f46e5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#3730a3', 'lineColor': '#374151', 'secondaryColor': '#e5e7eb', 'tertiaryColor': '#f3f4f6'}}}%%
 
-%% ゲーム中（通常操作：掴む→動かす→設置→進捗更新）
+%% ゲーム中（通常操作：選択→セルクリック→設置→進捗更新）
 sequenceDiagram
     participant U1 as ユーザー1
     participant F1 as フロントエンド1
@@ -20,35 +20,16 @@ sequenceDiagram
         F1->>F1: ローカル状態を上書き（安全に復元）
     end
 
-    U1->>F1: ピースを掴む(pieceId)
-    F1->>B: Socket emit: piece-grab
-    B->>R: SET key lock:piece:{id} NX PX ttl （保持者=U1）
-    alt ロック成功
-        R-->>B: OK
-        Note over B: 自チームのroomにのみ通知
-        B->>F1: Socket to team room: piece-grabbed {pieceId, byUserId}
-    else 失敗（他ユーザが保持/配置済）
-        R-->>B: NG
-        B-->>F1: piece-grab-denied {pieceId, reason}
-    end
-
-    loop ドラッグ（送信側スロットリング 15–30Hz）
-        U1->>F1: ピース移動(x,y)
-        F1->>B: Socket emit: piece-move
-        Note over B: 送信はソケットID単位で40msスロットリング
-        B->>R: 位置更新（holder一致を確認）
-        B->>F1: Socket to team room: piece-moved {pieceId, x, y, byUserId}
-    end
-
-    U1->>F1: 設置操作(候補 row,col)
-    F1->>B: Socket emit: piece-place
-    B->>R: 検証（holder, 正解, スナップ域）
-    alt 正解で設置
-        B->>R: 盤面確定・ロック解除・スコア+1
+    U1->>F1: ピースを選択(pieceId)
+    U1->>F1: 盤面セルをクリック(row,col)
+    F1->>B: Socket emit: piece-place {matchId,teamId,userId,pieceId,row,col}
+    B->>R: 検証（未配置/盤内/セル未占有/（任意）正解セル）
+    alt 設置成功
+        B->>R: 盤面確定・スコア+1
         B->>F1: Socket to team room: piece-placed {pieceId,row,col,byUserId}
         Note over B: 進捗は public に最小限を通知
         B->>F1: Socket to public: progress-update {placedByTeam}
-    else 不正/範囲外
+    else 不正/範囲外/占有
         B-->>F1: piece-place-denied {pieceId, reason}
     end
 

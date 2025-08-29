@@ -18,9 +18,9 @@ import * as TeamModel from "../model/team/team.js";
 import * as Matching from "../model/matching/matching.js";
 import * as GameSession from "../model/game/session.js";
 import { redisKeys } from "../repository/redisKeys.js";
-import { buildInitPayload, buildInitPayloadWithTimer } from "../model/game/init.js";
+import { buildInitPayload, buildInitPayloadWithTimer, buildInitPayloadWithPieces } from "../model/game/init.js";
 import * as PieceService from "../model/game/pieceService.js";
-import { PieceGrabPayloadSchema, PieceMovePayloadSchema, PieceReleasePayloadSchema, PiecePlacePayloadSchema, RequestGameInitPayloadSchema } from "../model/game/schemas.js";
+import { PiecePlacePayloadSchema, RequestGameInitPayloadSchema } from "../model/game/schemas.js";
 import { createGameStore } from "../config/di.js";
 import { createThrottler } from "./middleware/rateLimit.js";
 import { createTimerScheduler } from "./middleware/timerScheduler.js";
@@ -28,11 +28,11 @@ import { incrementTeamPlacedAndGetScore } from "../model/game/progress.js";
 import { completeMatchIfNeeded } from "../model/game/endService.js";
 import { seedPiecesIfEmpty } from "../model/game/seed.js";
 import { buildStateSnapshot } from "../model/game/state.js";
-import { reclaimLocksForUserAcrossMatches } from "../model/game/lockReclaimService.js";
+// lock reclaim not used in click-placement version
 
 export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClient) {
   const store = createGameStore(redis);
-  const moveThrottler = createThrottler(40);
+  // move throttler not needed (drag removed)
   const timerScheduler = createTimerScheduler(io as any, store);
   const stateSyncThrottler = createThrottler(500);
   socket.on(SOCKET_EVENTS.JOIN_TEAM, async (payload: JoinTeamPayload) => {
@@ -179,12 +179,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
         console.error(`Failed to remove socket mapping on disconnect: ${removeResult.error}`);
       }
 
-      // M6: ロック回収（このユーザーが保持中のピースを解放）
-      try {
-        await reclaimLocksForUserAcrossMatches(redis, store, userId);
-      } catch (e) {
-        console.error('Failed to reclaim locks on disconnect', e);
-      }
+      // ロック回収不要（ドラッグ操作を廃止）
     } catch (error) {
       console.error(`Error handling disconnect:`, error);
     }
@@ -239,18 +234,30 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
 
       if (joinQueueResult.value.type === "found") {
         const { matchId, self, partner } = joinQueueResult.value;
-        const matchFoundPayload: MatchFoundPayload = {
+        const timestamp = new Date().toISOString();
+
+        // 各チーム向けに個別のペイロードを作成
+        const selfTeamPayload: MatchFoundPayload = {
           matchId,
           self: { teamId: self.teamId, memberCount: self.memberCount },
           partner: { teamId: partner.teamId, memberCount: partner.memberCount },
-          timestamp: new Date().toISOString(),
+          timestamp,
+        };
+
+        const partnerTeamPayload: MatchFoundPayload = {
+          matchId,
+          self: { teamId: partner.teamId, memberCount: partner.memberCount },   // 逆転
+          partner: { teamId: self.teamId, memberCount: self.memberCount },      // 逆転
+          timestamp,
         };
 
         const selfRoom = getTeamRoom(self.teamId);
         const partnerRoom = getTeamRoom(partner.teamId);
         console.log(`Match found ${matchId}: ${self.teamId} vs ${partner.teamId}`);
-        io.to(selfRoom).emit(SOCKET_EVENTS.MATCH_FOUND, matchFoundPayload);
-        io.to(partnerRoom).emit(SOCKET_EVENTS.MATCH_FOUND, matchFoundPayload);
+        
+        // 各チームに正しいペイロードを送信
+        io.to(selfRoom).emit(SOCKET_EVENTS.MATCH_FOUND, selfTeamPayload);
+        io.to(partnerRoom).emit(SOCKET_EVENTS.MATCH_FOUND, partnerTeamPayload);
       }
     } catch (error) {
       console.error(`Error joining matching queue:`, error);
@@ -262,33 +269,62 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
   socket.on(SOCKET_EVENTS.JOIN_GAME, async (payload: JoinGamePayload) => {
     try {
       const { matchId, teamId, userId } = payload;
-      // 参加直後に game-init を参加者へ返す（M5: timerを反映）
-      try {
-        let initPayload = buildInitPayload({ matchId, teamId, userId });
-        const timerRes = await store.getTimer(matchId);
-        if (timerRes.isOk()) {
-          initPayload = buildInitPayloadWithTimer({ matchId, teamId, userId }, timerRes.value);
-        }
-        socket.emit(SOCKET_EVENTS.GAME_INIT, initPayload);
-        // 任意強化: 即時のstate-syncを本人へ（ズレ最小化）
-        try {
-          const snap = await buildStateSnapshot(store, matchId);
-          if (snap.isOk()) socket.emit(SOCKET_EVENTS.STATE_SYNC, snap.value);
-        } catch {}
-      } catch (e) {
-        console.error("Failed to emit game-init:", e);
-      }
+      
       // publicルームにも参加（進捗/終了の受信のため）
       try {
         await socket.join(`room:match:${matchId}:public`);
       } catch (e) {
         console.error("Failed to join public room:", e);
       }
-      // 初期ピースのシード（未登録の場合）
+      
+      // 1. 先に初期ピースをシード（未登録の場合）
       try {
-        await seedPiecesIfEmpty(store, { matchId, rows: 6, cols: 6 });
+        await seedPiecesIfEmpty(store, { matchId, rows: 5, cols: 5 });
+        
+        // seed完了を確実にするため、完了確認
+        let retries = 0;
+        const maxRetries = 3;
+        let pieceCount = 0;
+        
+        while (retries < maxRetries) {
+          const listResult = await store.listPieces(matchId);
+          if (listResult.isOk() && listResult.value.length === 25) {
+            pieceCount = listResult.value.length;
+            break;
+          }
+          
+          retries++;
+          console.warn(`Seed completion check retry ${retries}/${maxRetries}, current pieces: ${listResult.isOk() ? listResult.value.length : 'error'}`);
+          
+          // 短時間待機後にリトライ
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        console.log(`Seed completion verified: ${pieceCount} pieces for match ${matchId}`);
       } catch (e) {
         console.error("Failed to seed pieces:", e);
+      }
+      
+      // 2. seedされたピースを含むgame-initを送信（M5: timerを反映）
+      try {
+        const timerRes = await store.getTimer(matchId);
+        const timer = timerRes.isOk() ? timerRes.value : null;
+        const initPayload = await buildInitPayloadWithPieces(store, { matchId, teamId, userId }, timer);
+        
+        // デバッグ情報追加
+        console.log(`Sending game-init to ${userId} with ${initPayload.pieces.length} pieces`);
+        socket.emit(SOCKET_EVENTS.GAME_INIT, initPayload);
+        
+        // 3. 完全なstate-syncを本人へ送信（ズレ最小化）
+        try {
+          const snap = await buildStateSnapshot(store, matchId);
+          if (snap.isOk()) {
+            console.log(`Sending state-sync to ${userId} with ${snap.value.pieces.length} pieces`);
+            socket.emit(SOCKET_EVENTS.STATE_SYNC, snap.value);
+          }
+        } catch {}
+      } catch (e) {
+        console.error("Failed to emit game-init:", e);
       }
       const recordResult = await GameSession.recordPlayerConnected(redis, matchId, teamId, userId);
       if (recordResult.isErr()) {
@@ -299,6 +335,15 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       if (recordResult.value.allConnected) {
         const nowIso = new Date().toISOString();
         const gameStartPayload: GameStartPayload = { matchId, timestamp: nowIso };
+        
+        // マッチステータスをIN_GAMEに更新
+        const currentMatch = await store.getMatch(matchId);
+        if (currentMatch.isOk() && currentMatch.value) {
+          const updatedMatch = { ...currentMatch.value, status: 'IN_GAME' as const };
+          await store.setMatch(matchId, updatedMatch);
+          console.log(`Match ${matchId} status updated to IN_GAME`);
+        }
+        
         // M5: タイマー設定（デフォルト 120s）
         const DEFAULT_DURATION_MS = 120_000;
         const setTimerRes = await store.setTimer(matchId, { startedAt: nowIso, durationMs: DEFAULT_DURATION_MS });
@@ -332,23 +377,6 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
     }
   });
 
-  // M3: piece-grab
-  socket.on(SOCKET_EVENTS.PIECE_GRAB, async (payload) => {
-    try {
-      const p = PieceGrabPayloadSchema.parse(payload);
-      const res = await PieceService.grab(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, lockTtlSec: 5 });
-      if (res.isOk()) {
-        // チームへ通知
-        const grabbed = { pieceId: p.pieceId, byUserId: p.userId };
-        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_GRABBED, grabbed);
-      } else {
-        const reason = res.error === 'locked' ? 'locked' : res.error === 'placed' ? 'placed' : 'notFound';
-        socket.emit(SOCKET_EVENTS.PIECE_GRAB_DENIED, { pieceId: p.pieceId, reason });
-      }
-    } catch (e) {
-      socket.emit('error', { message: 'invalid payload for piece-grab' });
-    }
-  });
 
   // M6: request-game-init -> state-sync（本人宛に最新スナップショット）
   socket.on(SOCKET_EVENTS.REQUEST_GAME_INIT, async (payload) => {
@@ -364,44 +392,13 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
     }
   });
 
-  // M3: piece-move
-  socket.on(SOCKET_EVENTS.PIECE_MOVE, async (payload) => {
-    try {
-      const p = PieceMovePayloadSchema.parse(payload);
-      if (!moveThrottler.shouldAllow(socket.id)) return;
-      const res = await PieceService.move(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, x: p.x, y: p.y, ts: p.ts });
-      if (res.isOk()) {
-        const moved = { pieceId: p.pieceId, x: p.x, y: p.y, byUserId: p.userId, ts: p.ts };
-        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_MOVED, moved);
-      } else {
-        // 非ホルダーなどは無視（拒否）
-      }
-    } catch (e) {
-      socket.emit('error', { message: 'invalid payload for piece-move' });
-    }
-  });
-
-  // M3: piece-release
-  socket.on(SOCKET_EVENTS.PIECE_RELEASE, async (payload) => {
-    try {
-      const p = PieceReleasePayloadSchema.parse(payload);
-      const res = await PieceService.release(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, x: p.x, y: p.y });
-      if (res.isOk()) {
-        const released = { pieceId: p.pieceId, x: p.x, y: p.y, byUserId: p.userId };
-        io.to(getTeamRoom(p.teamId)).emit(SOCKET_EVENTS.PIECE_RELEASED, released);
-      } else {
-        // 非ホルダー/配置済等は無視（拒否）
-      }
-    } catch (e) {
-      socket.emit('error', { message: 'invalid payload for piece-release' });
-    }
-  });
+  // ドラッグ系（move/release）は廃止
 
   // M4: piece-place
   socket.on(SOCKET_EVENTS.PIECE_PLACE, async (payload) => {
     try {
       const p = PiecePlacePayloadSchema.parse(payload);
-      const res = await PieceService.place(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, row: p.row, col: p.col, x: p.x, y: p.y });
+      const res = await PieceService.place(store, { matchId: p.matchId, pieceId: p.pieceId, userId: p.userId, teamId: p.teamId, row: p.row, col: p.col });
       if (res.isOk()) {
         // 自チームへ配置確定
         const placed = { pieceId: p.pieceId, row: p.row, col: p.col, byUserId: p.userId };

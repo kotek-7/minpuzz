@@ -4,11 +4,11 @@
 
 ## マイルストーン概要
 - M1: セッション/ルーム最小実装（join-game登録、game-init返却、全員接続でgame-start）
-- M2: ストア/ロック層の抽象化（GameStore IF、Redis実装、キー設計確立）
-- M3: ピースエンジン（grab/move/releaseの検証とブロードキャスト）
+- M2: ストア層の確定（GameStore IF、Redis実装、キー設計確立）
+- M3: クリック配置エンジン（place の検証とブロードキャスト）
 - M4: 配置/スコア/進捗（place→確定→progress-update、全配置でgame-end）
 - M5: タイムキーパー（timer-sync、timeoutでgame-end）
-- M6: 再接続/同期ずれ対策（request-game-init/state-sync、ロック回収）
+- M6: 再接続/同期ずれ対策（request-game-init/state-sync）
 - M7: 運用補助（メトリクス、管理操作、レート制限）
 
 ---
@@ -52,7 +52,7 @@
   - 参照: `backend/src/socket/teamSocket.ts`（DISCONNECT）
 
 - U7: Dummy game-init Payload Generator
-  - 概要: ダミーの初期化データ生成（6x6、空pieces）
+  - 概要: ダミーの初期化データ生成（5x5、空pieces）
   - 受入基準: Zodスキーマに合致。`join-game`時に送出される。
   - 実装状況: [x] done（単体テスト済）
   - 参照: `backend/src/model/game/init.ts`, `backend/src/__tests__/model/game/init.test.ts`
