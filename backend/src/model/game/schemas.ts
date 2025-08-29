@@ -10,6 +10,7 @@ export const PieceSchema = z.object({
   holder: z.string().min(1).optional(),
   solRow: z.number().int().nonnegative().optional(),
   solCol: z.number().int().nonnegative().optional(),
+  season: z.enum(['spring', 'summer', 'autumn', 'winter']).optional(),
 }).refine(
   (p) => (p.placed ? p.row !== undefined && p.col !== undefined : true),
   { message: "placed=true の場合は row/col が必須" }
