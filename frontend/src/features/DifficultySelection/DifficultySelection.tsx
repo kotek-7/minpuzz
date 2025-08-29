@@ -7,10 +7,10 @@ import { createTeam, addTeamMember, type Difficulty } from "@/lib/api/teams";
 import { getNickname, getOrCreateUserId, setTeamId, setTeamNumber } from "@/lib/session/session";
 // 難易度の種類と詳細を定数として定義します。
 const difficulties = [
-  { level: "初級", description: "5ピースのパズル。初心者用。", value: "easy" },
-  { level: "中級", description: "20ピースのパズル。慣れたらココ。", value: "normal" },
-  { level: "上級", description: "30ピースのパズル。ピースの形も変化。", value: "hard" },
-  { level: "エクストラ", description: "50ピースのパズル。挑戦してみよう。", value: "extra" },
+  { level: "初級", description: "5ピースのパズル。初心者用。", value: "easy", disabled: true },
+  { level: "中級", description: "20ピースのパズル。慣れたらココ。", value: "normal", disabled: true },
+  { level: "上級", description: "30ピースのパズル。ピースの形も変化。", value: "hard", disabled: false },
+  { level: "エクストラ", description: "50ピースのパズル。挑戦してみよう。", value: "extra", disabled: true },
 ];
 
 // 難易度型は API の型を利用
@@ -46,26 +46,34 @@ export default function DifficultySelection() {
 
       {/* 難易度ボタンのコンテナです。 */}
       <div className="flex w-full max-w-sm flex-col space-y-4 px-4">
+        {/* お知らせエリア */}
+        <div className="bg-yellow-50 border border-yellow-300 text-gray-700 text-sm rounded-lg p-3 text-center">
+          💡 現在は <strong>上級</strong> のみ選択可能です。
+        </div>
+
         {/* difficulties 配列を map でループし、各難易度のボタンを動的に生成します。 */}
         {difficulties.map((difficulty) => (
           <button
             key={difficulty.value}
             onClick={() => {
+              if (difficulty.disabled) return;
               playSound("/sounds/select.mp3");
               setSelectedDifficulty(difficulty.value as Difficulty);
             }}
+            disabled={difficulty.disabled || loading}
             className={`
-              w-full rounded-2xl p-4 text-center border-2 border-[#32acb4] 
+              w-full rounded-2xl p-4 text-center border-2 group transition-all duration-150
               ${
                 selectedDifficulty === difficulty.value
-                  ? "bg-[#cdedef]" //選択時
-                  : "bg-white"
-              } // 非選択時
+                  ? "border-[#32acb4] bg-[#cdedef]" // 選択時
+                  : "border-[#32acb4] bg-white"    // 非選択時
+              }
+              disabled:bg-gray-200 disabled:border-gray-300 disabled:cursor-not-allowed
             `}
             style={{ boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)" }}
           >
-            <h2 className="text-2xl font-semibold text-black">{difficulty.level}</h2>
-            <p className="mt-1 text-base text-black">{difficulty.description}</p>
+            <h2 className="text-2xl font-semibold text-black group-disabled:text-gray-500">{difficulty.level}</h2>
+            <p className="mt-1 text-base text-black group-disabled:text-gray-500">{difficulty.description}</p>
           </button>
         ))}
       </div>
