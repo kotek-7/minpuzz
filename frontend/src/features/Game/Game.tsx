@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import GameUI, { GameUIProps } from "./components/GameUI";
+import GameUI  from "./components/GameUI";
 import { useGameState, useGameActions } from "./store";
 import { getOrCreateUserId, getTeamId } from "@/lib/session/session";
 import { getSocket } from "@/lib/socket/client";
@@ -484,7 +484,7 @@ export default function Game() {
   }), [handlePieceSelect, handleCellClick, handlePlacedPieceClick]);
 
   // GameUIProps
-  const gameUIProps: GameUIProps = {
+  const gameUIProps = {
     gameState: {
       matchId: gameState.matchId || '',
       board: gameState.board,
