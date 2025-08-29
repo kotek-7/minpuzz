@@ -14,7 +14,7 @@ export const Top = () => {
 
   return (
     <div
-      className="h-screen w-full mx-auto p-[80px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]"
+      className="min-h-dvh w-full mx-auto p-[40px_10px_10px] bg-gradient-to-b from-[#00ffff] to-[#007f9e]"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
     >
       {showNicknameAlert && (
@@ -31,9 +31,9 @@ export const Top = () => {
         </div>
       )}
 
-      <div className="bg-[#e0f8fb] p-2.5 min-h-[650px] text-center">
+      <div className="bg-[#e0f8fb] p-2.5 min-h-[600px] text-center">
         <div className="flex justify-center">
-          <Logo style={{ width: "340px", height: "auto", marginTop: "70px" }} />
+          <Logo style={{ width: "340px", height: "auto", marginTop: "40px" }} />
         </div>
         <p className="text-[18px] mt-5 mb-5 text-black text-center">力を合わせてパズルを完成させよう!</p>
 
