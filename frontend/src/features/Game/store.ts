@@ -86,12 +86,15 @@ class GameStoreImpl {
     
     const mapping = this.buildDisplayMapping(Object.keys(finalPieces));
     this.snapshot = {
-      ...this.snapshot,
-      matchId: p.matchId ?? this.snapshot.matchId,
+      // スプレッドを削除し、初期状態を明示的に定義
+      ...this.snapshot, // matchId, self, partnerは維持
       board: p.board,
       pieces: finalPieces,
+      score: { placedByTeam: {} }, // スコアをリセット
       timer: p.startedAt && p.durationMs ? { startedAt: p.startedAt, durationMs: p.durationMs } : null,
       matchStatus: "READY",
+      started: false, // startedをリセット
+      ended: false, // endedをリセット
       _displayIndexToId: mapping.indexToId,
       _idToDisplayIndex: mapping.idToIndex,
     };

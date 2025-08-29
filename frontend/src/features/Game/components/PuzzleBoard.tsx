@@ -56,80 +56,65 @@ export default function PuzzleBoard({
     const canPlace = selectedPieceId && !isOccupied;
     const selectedPiece = selectedPieceId ? pieces[selectedPieceId] : null;
     const isMovingSelectedPiece = selectedPiece?.placed && selectedPiece.row === row && selectedPiece.col === col;
+    const season = "spring"; // TODO: propsから受け取る
 
     // セルクリック処理
     const handleCellClick = () => {
       if (cellContent && !isMovingSelectedPiece) {
-        // 配置済みピースをクリック → 選択
         onPlacedPieceClick(cellContent.pieceId);
       } else if (canPlace) {
-        // 空きセルクリック → 配置/移動
         onCellClick(row, col);
+      } else if (isMovingSelectedPiece) {
+        onPlacedPieceClick(cellContent!.pieceId);
       }
     };
 
-    // セルスタイルを取得
-    const getCellStyle = (): string => {
-      const baseStyle = "aspect-square border-2 rounded-lg flex items-center justify-center text-lg font-bold transition-all duration-200 cursor-pointer";
-      
-      if (isMovingSelectedPiece) {
-        // 移動対象のピース（選択中の配置済みピース）
-        return `${baseStyle} bg-yellow-100 border-yellow-400 ring-4 ring-yellow-300 hover:bg-yellow-200`;
-      } else if (cellContent) {
-        // 他の配置済みピース
-        return `${baseStyle} bg-green-100 border-green-400 hover:bg-green-200`;
-      } else if (canPlace) {
-        // 配置可能セル
-        return `${baseStyle} bg-blue-50 border-blue-200 ring-2 ring-blue-200 hover:bg-blue-100`;
-      } else if (isOccupied) {
-        // 配置不可セル
-        return `${baseStyle} bg-red-50 border-red-300`;
-      } else {
-        // 通常の空きセル（選択ピースなし）
-        return `${baseStyle} bg-white border-gray-300`;
-      }
+    // オーバーレイのスタイルを決定
+    const getOverlayStyle = (): string => {
+      const baseStyle = "absolute inset-0 w-full h-full rounded-lg z-20 transition-all duration-200 pointer-events-none border-4";
+      if (isMovingSelectedPiece) return `${baseStyle} border-yellow-400 bg-yellow-400/30`;
+      if (cellContent) return "absolute inset-0 w-full h-full rounded-lg z-20 transition-all duration-200 pointer-events-none border-4 border-transparent group-hover:border-green-400/70";
+      if (canPlace) return `${baseStyle} border-blue-400 bg-blue-400/30`;
+      if (isOccupied) return `${baseStyle} border-red-400 bg-red-400/30`;
+      return "absolute inset-0 w-full h-full rounded-lg z-20 transition-all duration-200 pointer-events-none border-2 border-gray-300 group-hover:border-gray-400";
     };
 
     // ツールチップテキストを取得
     const getTooltipText = (): string => {
-      if (isMovingSelectedPiece) {
-        return `選択中のピース ${cellContent!.displayIndex} - クリックで選択解除`;
-      } else if (cellContent) {
-        return `ピース ${cellContent.displayIndex} - クリックで選択`;
-      } else if (canPlace) {
+      if (isMovingSelectedPiece) return `選択中のピース ${cellContent!.displayIndex} - クリックで選択解除`;
+      if (cellContent) return `ピース ${cellContent.displayIndex} - クリックで選択`;
+      if (canPlace) {
         const action = selectedPiece?.placed ? '移動' : '配置';
         return `${action}可能 - クリックでピース ${pieceToDisplayIndexMap[selectedPieceId!]}を${action}`;
-      } else if (isOccupied) {
-        return '配置不可';
-      } else {
-        return '空きセル';
       }
+      if (isOccupied) return '配置不可';
+      return '空きセル';
     };
 
     return (
       <div
         key={cellKey}
-        className={getCellStyle()}
+        className="group relative aspect-square bg-white rounded-lg cursor-pointer shadow-inner"
         title={getTooltipText()}
         onClick={handleCellClick}
       >
+        {/* 1. ピース画像  */}
         {cellContent && (
-          <div className="text-center pointer-events-none">
-            <div className="text-xs text-gray-600 mb-1">ピース</div>
-            <div className={`text-xl ${isMovingSelectedPiece ? 'text-yellow-600' : 'text-green-600'}`}>
-              {cellContent.displayIndex}
-            </div>
-            {isMovingSelectedPiece && (
-              <div className="text-xs text-yellow-600 mt-1">選択中</div>
-            )}
-          </div>
+          <div
+            className="absolute scale-[3.6] z-10 pointer-events-none inset-0 w-full h-full bg-cover bg-center rounded-md"
+            style={{ backgroundImage: `url(/pieces/${season}/${cellContent.displayIndex}.png)` }}
+          />
         )}
-        {!cellContent && canPlace && (
-          <div className="text-3xl text-blue-400 opacity-60 pointer-events-none">+</div>
-        )}
-        {!cellContent && !canPlace && selectedPieceId && isOccupied && (
-          <div className="text-2xl text-red-400 opacity-60 pointer-events-none">×</div>
-        )}
+
+        {/* 2. 状態オーバーレイ  */}
+        <div className={getOverlayStyle()}>
+          {!cellContent && canPlace && (
+            <div className="w-full h-full flex items-center justify-center text-4xl text-blue-500 opacity-70">+</div>
+          )}
+          {!cellContent && !canPlace && selectedPieceId && isOccupied && (
+            <div className="w-full h-full flex items-center justify-center text-3xl text-red-500 opacity-70">×</div>
+          )}
+        </div>
       </div>
     );
   };
@@ -152,7 +137,7 @@ export default function PuzzleBoard({
       </div>
       
       <div 
-        className="grid gap-1 bg-gray-100 p-2 rounded-xl shadow-lg"
+        className="grid gap-0.5 bg-gray-100 p-2 rounded-xl shadow-lg"
         style={{ 
           gridTemplateColumns: `repeat(${cols}, 1fr)`,
           gridTemplateRows: `repeat(${rows}, 1fr)` 

@@ -44,11 +44,10 @@ export default function GameTimer({ remainingTimeMs, isStarted, matchStatus }: G
   if (matchStatus === "COMPLETED") {
     return (
       <div className="text-center p-4 bg-gray-800 rounded-lg border">
-        <div className="text-4xl mb-2">🏁</div>
-        <div className="text-lg font-semibold text-white">
+        <div className="text font-semibold text-white">
           ゲーム終了
         </div>
-        <div className="text-sm text-gray-300 mt-1">
+        <div className="text-xs text-gray-300 mt-1">
           お疲れさまでした
         </div>
       </div>
@@ -72,50 +71,32 @@ export default function GameTimer({ remainingTimeMs, isStarted, matchStatus }: G
 
   // メインタイマー表示
   return (
-    <div className={`text-center p-6 rounded-lg border-2 transition-all duration-300 ${
+    <div className={`text-center p-3 rounded-lg border transition-all duration-300 ${
       isCritical 
         ? "bg-red-100 border-red-500 animate-pulse" 
         : isTimeRunningOut 
           ? "bg-orange-100 border-orange-400" 
-          : "bg-blue-50 border-blue-300"
+          : "bg-white border-gray-300"
     }`}>
-      {/* タイマーアイコン */}
-      <div className={`text-6xl mb-3 ${
-        isCritical ? "animate-bounce" : ""
-      }`}>
-        {isCritical ? "🚨" : isTimeRunningOut ? "⚠️" : "⏰"}
-      </div>
-      
       {/* 残り時間表示 */}
-      <div className={`text-5xl font-bold mb-2 font-mono tracking-wider ${
+      <div className={`text-3xl font-bold font-mono tracking-wider mb-1 ${
         isCritical 
           ? "text-red-600" 
           : isTimeRunningOut 
             ? "text-orange-600" 
-            : "text-blue-600"
+            : "text-gray-800"
       }`}>
+        {isCritical && "🚨 "}
+        {!isCritical && isTimeRunningOut && "⚠️ "}
         {formatTime(remainingTimeMs)}
-      </div>
-      
-      {/* 状態表示 */}
-      <div className={`text-sm font-semibold ${
-        isCritical 
-          ? "text-red-700" 
-          : isTimeRunningOut 
-            ? "text-orange-700" 
-            : "text-blue-700"
-      }`}>
-        {isCritical && "🔥 ラストスパート！"}
-        {!isCritical && isTimeRunningOut && "⚡ 残りわずか"}
-        {!isTimeRunningOut && "⏳ 残り時間"}
       </div>
       
       {/* プログレスバー */}
       {remainingTimeMs > 0 && (
-        <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded-full h-3">
+        <div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5">
             <div 
-              className={`h-3 rounded-full transition-all duration-1000 ${
+              className={`h-1.5 rounded-full transition-all duration-1000 ${
                 isCritical 
                   ? "bg-red-500" 
                   : isTimeRunningOut 
@@ -127,16 +108,6 @@ export default function GameTimer({ remainingTimeMs, isStarted, matchStatus }: G
               }}
             />
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            進行状況: {Math.round((remainingTimeMs / 120000) * 100)}%
-          </div>
-        </div>
-      )}
-      
-      {/* 時間切れ表示 */}
-      {remainingTimeMs <= 0 && (
-        <div className="mt-2 text-red-600 font-bold animate-pulse">
-          ⏰ TIME UP!
         </div>
       )}
     </div>

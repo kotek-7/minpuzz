@@ -68,7 +68,7 @@ export default function PieceSelector({
           alt={`ピース ${piece.displayIndex}`}
           width={64}
           height={64}
-          className="w-full h-full object-cover"
+          className="scale-200 pointer-events-none w-full h-full object-cover"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
@@ -84,10 +84,7 @@ export default function PieceSelector({
         
         {/* 選択状態のオーバーレイ */}
         {isSelected && (
-          <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
-            <div className={`text-white text-xs font-bold px-1 py-0.5 rounded ${piece.placed ? 'bg-yellow-500' : 'bg-blue-500'}`}>
-              選択中
-            </div>
+          <div className="absolute inset-0 bg-opacity-20 flex items-center justify-center">
           </div>
         )}
         
@@ -112,7 +109,7 @@ export default function PieceSelector({
         <h3 className="text-lg font-bold text-gray-800">
           ピース選択
         </h3>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-xs text-gray-600 mt-1">
           ピースをクリックして選択し、盤面に配置・移動してください
         </p>
       </div>

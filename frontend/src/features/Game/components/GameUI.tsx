@@ -8,18 +8,22 @@ import OpponentProgress from "./OpponentProgress";
 import GameTimer from "./GameTimer";
 
 // Toast表示コンポーネント
-const ToastContainer = ({ toasts }: { toasts: Array<{id: string; message: string; type: 'error' | 'success' | 'info'}> }) => {
+const ToastContainer = ({
+  toasts,
+}: {
+  toasts: Array<{ id: string; message: string; type: "error" | "success" | "info" }>;
+}) => {
   if (toasts.length === 0) return null;
-  
+
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2">
-      {toasts.map(toast => {
+      {toasts.map((toast) => {
         const colors = {
-          error: 'bg-red-500 text-white',
-          success: 'bg-green-500 text-white',
-          info: 'bg-blue-500 text-white'
+          error: "bg-red-500 text-white",
+          success: "bg-green-500 text-white",
+          info: "bg-blue-500 text-white",
         };
-        
+
         return (
           <div
             key={toast.id}
@@ -46,28 +50,28 @@ export interface GameUIProps {
     self?: { teamId: string; memberCount?: number } | null;
     partner?: { teamId: string; memberCount?: number } | null;
   };
-  
+
   // セッション情報
   sessionInfo: {
     matchId: string;
     teamId: string;
     userId: string;
   } | null;
-  
+
   // UI状態
   uiState: {
     selectedPieceId: string | null;
     isConnecting: boolean;
-    toasts: Array<{id: string; message: string; type: 'error' | 'success' | 'info'}>;
+    toasts: Array<{ id: string; message: string; type: "error" | "success" | "info" }>;
   };
-  
+
   // アクションハンドラー
   actions: {
     onPieceSelect: (pieceId: string) => void;
     onCellClick: (row: number, col: number) => void;
     onPlacedPieceClick: (pieceId: string) => void;
   };
-  
+
   // 計算済みデータ
   computedData: {
     pieceToDisplayIndexMap: Record<string, number>;
@@ -79,7 +83,6 @@ export interface GameUIProps {
 }
 
 export default function GameUI({ gameState, sessionInfo, uiState, computedData, actions }: GameUIProps) {
-  
   // 必要なパラメータチェック
   if (!sessionInfo) {
     return (
@@ -91,16 +94,14 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData, 
             <br />
             マッチング画面からやり直してください。
           </div>
-          <div className="mt-2 text-sm text-gray-500">
-            sessionInfo: null
-          </div>
+          <div className="mt-2 text-sm text-gray-500">sessionInfo: null</div>
         </div>
       </div>
     );
   }
-  
+
   const { matchId, teamId, userId } = sessionInfo;
-  
+
   // 接続中
   if (uiState.isConnecting) {
     return (
@@ -114,44 +115,37 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData, 
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-7xl mx-auto">
         {/* ヘッダー */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-gray-800">
-              🧩 みんなでパズル
-            </h1>
-            
-            <div className="flex items-center space-x-2">
-              <div className="px-3 py-1 text-sm bg-gray-200 rounded-lg">
-                🔄 再同期
+        <div>
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between">
+            {/* 左側: タイトルとマッチ情報 */}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">🧩 みんなでパズル</h1>
+            </div>
+
+            <div className="grid grid-cols-2 space-x-2 mt-4">
+              {/* 右側: タイマー (スマホではタイトルの下、PCでは右) */}
+              <div className="">
+                <GameTimer
+                  remainingTimeMs={computedData.remainingTimeMs}
+                  isStarted={gameState.started}
+                  matchStatus={gameState.matchStatus}
+                />
               </div>
-              
-              <div className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg">
-                🏠 ホーム
-              </div>
+              <OpponentProgress opponentScore={computedData.opponentScore} partner={gameState.partner} />
             </div>
           </div>
-          
-          <div className="text-sm text-gray-600 mt-2">
-            Match: {matchId || 'N/A'} | Team: {teamId || 'N/A'} | User: {userId || 'N/A'}
-          </div>
         </div>
-        
+
         {/* メインゲーム領域 */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* 左カラム: タイマー */}
-          <div className="xl:col-span-1">
-            <GameTimer
-              remainingTimeMs={computedData.remainingTimeMs}
-              isStarted={gameState.started}
-              matchStatus={gameState.matchStatus}
-            />
-          </div>
-          
+          {/* 左カラム: (タイマーはヘッダーに移動したので空) */}
+          <div className="xl:col-span-1"></div>
+
           {/* 中央左: ゲーム状態と相手進捗 */}
           <div className="xl:col-span-1 space-y-4">
             <GameStatus
@@ -162,13 +156,8 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData, 
               self={gameState.self}
               partner={gameState.partner}
             />
-            
-            <OpponentProgress
-              opponentScore={computedData.opponentScore}
-              partner={gameState.partner}
-            />
           </div>
-          
+
           {/* 中央: パズル盤面 */}
           <div className="xl:col-span-1 flex flex-col items-center">
             <PuzzleBoard
@@ -181,7 +170,7 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData, 
               onPlacedPieceClick={actions.onPlacedPieceClick}
             />
           </div>
-          
+
           {/* 右カラム: ピース選択 */}
           <div className="xl:col-span-1">
             <PieceSelector
@@ -193,32 +182,36 @@ export default function GameUI({ gameState, sessionInfo, uiState, computedData, 
             />
           </div>
         </div>
-        
+
         {/* デバッグ情報 (開発用) */}
-        {process.env.NODE_ENV === 'development' && (
+        {process.env.NODE_ENV === "development" && (
           <div className="mt-8 p-4 bg-gray-800 text-white rounded-lg text-sm">
             <details>
               <summary className="cursor-pointer font-semibold mb-2">🐛 デバッグ情報</summary>
               <pre className="overflow-auto text-xs">
-                {JSON.stringify({
-                  matchId,
-                  teamId,
-                  userId,
-                  selectedPieceId: uiState.selectedPieceId,
-                  gameState: {
-                    matchStatus: gameState.matchStatus,
-                    started: gameState.started,
-                    ended: gameState.ended,
-                    piecesCount: Object.keys(gameState.pieces).length,
-                    placedCount: Object.values(gameState.pieces).filter(p => p.placed).length
-                  }
-                }, null, 2)}
+                {JSON.stringify(
+                  {
+                    matchId,
+                    teamId,
+                    userId,
+                    selectedPieceId: uiState.selectedPieceId,
+                    gameState: {
+                      matchStatus: gameState.matchStatus,
+                      started: gameState.started,
+                      ended: gameState.ended,
+                      piecesCount: Object.keys(gameState.pieces).length,
+                      placedCount: Object.values(gameState.pieces).filter((p) => p.placed).length,
+                    },
+                  },
+                  null,
+                  2,
+                )}
               </pre>
             </details>
           </div>
         )}
       </div>
-      
+
       {/* Toast通知 */}
       <ToastContainer toasts={uiState.toasts} />
     </div>
