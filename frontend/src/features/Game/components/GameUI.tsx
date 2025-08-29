@@ -1,219 +1,109 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PuzzleBoard from "./PuzzleBoard";
 import PieceSelector from "./PieceSelector";
-import GameStatus from "./GameStatus";
-import OpponentProgress from "./OpponentProgress";
 import GameTimer from "./GameTimer";
 
-// Toast表示コンポーネント
-const ToastContainer = ({
-  toasts,
-}: {
-  toasts: Array<{ id: string; message: string; type: "error" | "success" | "info" }>;
-}) => {
-  if (toasts.length === 0) return null;
+import type { GameUIProps } from "./types";
+
+export default function GameUI({ gameState, uiState, computedData, actions }: GameUIProps) {
+  const { board, pieces, matchStatus, started } = gameState;
+  const { selectedPieceId } = uiState;
+  const { pieceToDisplayIndexMap, occupiedCells, remainingTimeMs } = computedData;
+
+  const [glowPieceId, setGlowPieceId] = useState<number | null>(null);
+
+  // glowFade アニメーションを注入（初回のみ）
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.innerHTML = `
+      @keyframes glowFade {
+        0% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.5); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // ピースを置いたときだけ glowPieceId を一時的にセット
+  const handleCellClick = (row: number, col: number) => {
+    if (!selectedPieceId) return;
+
+    actions.onCellClick(row, col);
+
+    setGlowPieceId(selectedPieceId);
+    setTimeout(() => setGlowPieceId(null), 500);
+  };
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
-      {toasts.map((toast) => {
-        const colors = {
-          error: "bg-red-500 text-white",
-          success: "bg-green-500 text-white",
-          info: "bg-blue-500 text-white",
-        };
+    <main className="relative min-h-screen overflow-hidden p-4">
+      {/* 背景SVG */}
+      <svg
+        className="absolute inset-0 w-full h-full -z-10"
+        viewBox="0 0 540 960"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <rect x="0" y="0" width="540" height="960" fill="#F5B12A" />
+        <defs>
+          <linearGradient id="grad1_0" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="30%" stopColor="#f5b12a" stopOpacity="1" />
+            <stop offset="70%" stopColor="#f5b12a" stopOpacity="1" />
+          </linearGradient>
+          <linearGradient id="grad2_0" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="30%" stopColor="#f5b12a" stopOpacity="1" />
+            <stop offset="70%" stopColor="#f5b12a" stopOpacity="1" />
+          </linearGradient>
+        </defs>
+        <g transform="translate(540, 0)">
+          <path
+            d="M0 432C-73.6 418 -147.2 404 -213.5 369.8C-279.8 335.5 -338.9 281 -374.1 216C-409.3 151 -420.7 75.5 -432 0L0 0Z"
+            fill="#4AE2F3"
+          />
+        </g>
+        <g transform="translate(0, 960)">
+          <path
+            d="M0 -432C74.4 -419.4 148.8 -406.8 215 -372.4C281.2 -338 339.3 -281.7 374.1 -216C408.9 -150.3 420.5 -75.1 432 0L0 0Z"
+            fill="#4AE2F3"
+          />
+        </g>
+      </svg>
 
-        return (
-          <div
-            key={toast.id}
-            className={`px-4 py-2 rounded-lg shadow-lg ${colors[toast.type]} animate-in slide-in-from-right duration-300`}
-          >
-            {toast.message}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+      {/* コンテンツ */}
+      <div className="container mx-auto max-w-6xl space-y-6">
+        {/* タイマー */}
+        <GameTimer
+          remainingTimeMs={remainingTimeMs}
+          isStarted={started}
+          matchStatus={matchStatus}
+        />
 
-export interface GameUIProps {
-  // ゲーム状態
-  gameState: {
-    matchId: string;
-    board: { rows: number; cols: number } | null;
-    pieces: Record<string, { id: string; placed?: boolean; row?: number; col?: number }>;
-    score: { placedByTeam: Record<string, number> } | null;
-    matchStatus: "PREPARING" | "READY" | "IN_GAME" | "COMPLETED" | "UNKNOWN";
-    started: boolean;
-    ended: boolean;
-    self?: { teamId: string; memberCount?: number } | null;
-    partner?: { teamId: string; memberCount?: number } | null;
-  };
+        {/* 盤面とピース一覧 */}
+        <div className="grid lg:grid-cols-2 gap-8">
+          <PuzzleBoard
+            board={board}
+            pieces={pieces}
+            selectedPieceId={selectedPieceId}
+            pieceToDisplayIndexMap={pieceToDisplayIndexMap}
+            occupiedCells={occupiedCells}
+            glowPieceId={glowPieceId}
+            onCellClick={handleCellClick}
+            onPlacedPieceClick={actions.onPlacedPieceClick}
+          />
 
-  // セッション情報
-  sessionInfo: {
-    matchId: string;
-    teamId: string;
-    userId: string;
-  } | null;
-
-  // UI状態
-  uiState: {
-    selectedPieceId: string | null;
-    isConnecting: boolean;
-    toasts: Array<{ id: string; message: string; type: "error" | "success" | "info" }>;
-  };
-
-  // アクションハンドラー
-  actions: {
-    onPieceSelect: (pieceId: string) => void;
-    onCellClick: (row: number, col: number) => void;
-    onPlacedPieceClick: (pieceId: string) => void;
-  };
-
-  // 計算済みデータ
-  computedData: {
-    pieceToDisplayIndexMap: Record<string, number>;
-    occupiedCells: Set<string>;
-    remainingTimeMs: number | null;
-    myScore: number;
-    opponentScore: number;
-  };
-}
-
-export default function GameUI({ gameState, sessionInfo, uiState, computedData, actions }: GameUIProps) {
-  // 必要なパラメータチェック
-  if (!sessionInfo) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-xl text-red-600 mb-2">エラー</div>
-          <div className="text-gray-600">
-            ゲーム接続に必要な情報が不足しています。
-            <br />
-            マッチング画面からやり直してください。
-          </div>
-          <div className="mt-2 text-sm text-gray-500">sessionInfo: null</div>
+          <PieceSelector
+            pieces={pieces}
+            selectedPieceId={selectedPieceId}
+            pieceToDisplayIndexMap={pieceToDisplayIndexMap}
+            season="spring"
+            onPieceSelect={actions.onPieceSelect}
+          />
         </div>
       </div>
-    );
-  }
-
-  const { matchId, teamId, userId } = sessionInfo;
-
-  // 接続中
-  if (uiState.isConnecting) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin text-4xl mb-4">🧩</div>
-          <div className="text-xl font-semibold text-gray-700">ゲームに接続中...</div>
-          <div className="text-sm text-gray-500 mt-2">サーバーからデータを取得しています</div>
-        </div>
-        <ToastContainer toasts={uiState.toasts} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* ヘッダー */}
-        <div>
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between">
-            {/* 左側: タイトルとマッチ情報 */}
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">🧩 みんなでパズル</h1>
-            </div>
-
-            <div className="grid grid-cols-2 space-x-2 mt-4">
-              {/* 右側: タイマー (スマホではタイトルの下、PCでは右) */}
-              <div className="">
-                <GameTimer
-                  remainingTimeMs={computedData.remainingTimeMs}
-                  isStarted={gameState.started}
-                  matchStatus={gameState.matchStatus}
-                />
-              </div>
-              <OpponentProgress opponentScore={computedData.opponentScore} partner={gameState.partner} />
-            </div>
-          </div>
-        </div>
-
-        {/* メインゲーム領域 */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* 左カラム: (タイマーはヘッダーに移動したので空) */}
-          <div className="xl:col-span-1"></div>
-
-          {/* 中央左: ゲーム状態と相手進捗 */}
-          <div className="xl:col-span-1 space-y-4">
-            <GameStatus
-              score={gameState.score}
-              remainingTimeMs={computedData.remainingTimeMs}
-              matchStatus={gameState.matchStatus}
-              started={gameState.started}
-              self={gameState.self}
-              partner={gameState.partner}
-            />
-          </div>
-
-          {/* 中央: パズル盤面 */}
-          <div className="xl:col-span-1 flex flex-col items-center">
-            <PuzzleBoard
-              board={gameState.board}
-              pieces={gameState.pieces}
-              selectedPieceId={uiState.selectedPieceId}
-              pieceToDisplayIndexMap={computedData.pieceToDisplayIndexMap}
-              occupiedCells={computedData.occupiedCells}
-              onCellClick={actions.onCellClick}
-              onPlacedPieceClick={actions.onPlacedPieceClick}
-            />
-          </div>
-
-          {/* 右カラム: ピース選択 */}
-          <div className="xl:col-span-1">
-            <PieceSelector
-              pieces={gameState.pieces}
-              selectedPieceId={uiState.selectedPieceId}
-              pieceToDisplayIndexMap={computedData.pieceToDisplayIndexMap}
-              season="spring"
-              onPieceSelect={actions.onPieceSelect}
-            />
-          </div>
-        </div>
-
-        {/* デバッグ情報 (開発用) */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="mt-8 p-4 bg-gray-800 text-white rounded-lg text-sm">
-            <details>
-              <summary className="cursor-pointer font-semibold mb-2">🐛 デバッグ情報</summary>
-              <pre className="overflow-auto text-xs">
-                {JSON.stringify(
-                  {
-                    matchId,
-                    teamId,
-                    userId,
-                    selectedPieceId: uiState.selectedPieceId,
-                    gameState: {
-                      matchStatus: gameState.matchStatus,
-                      started: gameState.started,
-                      ended: gameState.ended,
-                      piecesCount: Object.keys(gameState.pieces).length,
-                      placedCount: Object.values(gameState.pieces).filter((p) => p.placed).length,
-                    },
-                  },
-                  null,
-                  2,
-                )}
-              </pre>
-            </details>
-          </div>
-        )}
-      </div>
-
-      {/* Toast通知 */}
-      <ToastContainer toasts={uiState.toasts} />
-    </div>
+    </main>
   );
 }

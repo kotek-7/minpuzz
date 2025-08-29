@@ -1,161 +1,100 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 
 interface PieceSelectorProps {
   pieces: Record<string, { id: string; placed?: boolean; row?: number; col?: number }>;
   selectedPieceId: string | null;
   pieceToDisplayIndexMap: Record<string, number>;
-  season?: 'spring' | 'summer' | 'automn' | 'winter'; // パズル画像のテーマ
-  onPieceSelect: (pieceId: string) => void; // ピース選択ハンドラー
+  season?: "spring" | "summer" | "automn" | "winter";
+  onPieceSelect: (pieceId: string) => void;
 }
 
 export default function PieceSelector({
   pieces,
   selectedPieceId,
   pieceToDisplayIndexMap,
-  season = 'spring',
-  onPieceSelect
+  season = "spring",
+  onPieceSelect,
 }: PieceSelectorProps) {
-  // 全ピース表示（配置済み・未配置を分けて表示）
-  const allPieces = Object.values(pieces);
-  const unplacedPieces = allPieces.filter(piece => !piece.placed);
-  const placedPieces = allPieces.filter(piece => piece.placed);
-  
-  // displayIndex順にソート（見た目の一貫性のため）
-  const sortedUnplacedPieces = unplacedPieces.map(piece => ({
-    ...piece,
-    displayIndex: pieceToDisplayIndexMap[piece.id] || 999
-  })).sort((a, b) => a.displayIndex - b.displayIndex);
+  const [shuffledIds, setShuffledIds] = useState<string[]>([]);
 
-  const sortedPlacedPieces = placedPieces.map(piece => ({
-    ...piece,
-    displayIndex: pieceToDisplayIndexMap[piece.id] || 999
-  })).sort((a, b) => a.displayIndex - b.displayIndex);
+  useEffect(() => {
+    if (shuffledIds.length === 0 && Object.keys(pieces).length > 0) {
+      const allIds = Object.values(pieces)
+        .filter((piece) => !piece.placed)
+        .map((piece) => piece.id);
 
-  // ピース位置を文字列で表現する関数
-  const formatPosition = (row?: number, col?: number): string => {
-    if (row === undefined || col === undefined) return "未配置";
-    return `(${row + 1},${col + 1})`;
-  };
-
-  // ピーススタイルを取得する関数
-  const getPieceStyle = (piece: any, isSelected: boolean): string => {
-    const baseStyle = "relative aspect-square rounded-lg overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-md";
-    
-    if (piece.placed) {
-      return `${baseStyle} ${isSelected ? 'ring-4 ring-yellow-400 shadow-lg scale-105' : 'ring-1 ring-gray-300'} opacity-70`;
-    } else {
-      return `${baseStyle} ${isSelected ? 'ring-4 ring-blue-400 shadow-lg scale-105' : 'ring-1 ring-gray-300'}`;
+      const shuffled = [...allIds].sort(() => Math.random() - 0.5);
+      setShuffledIds(shuffled);
     }
-  };
+  }, [pieces, shuffledIds]);
 
-  // レンダー用の共通ピース関数
-  const renderPiece = (piece: any, section: 'unplaced' | 'placed') => {
-    const isSelected = selectedPieceId === piece.id;
-    const imagePath = `/pieces/${season}/${piece.displayIndex}.png`;
-
-    return (
-      <div
-        key={piece.id}
-        className={getPieceStyle(piece, isSelected)}
-        title={`ピース ${piece.displayIndex} ${piece.placed ? `- 配置済み ${formatPosition(piece.row, piece.col)}` : '- 未配置'}`}
-        onClick={() => onPieceSelect(piece.id)}
-      >
-        <Image
-          src={imagePath}
-          alt={`ピース ${piece.displayIndex}`}
-          width={64}
-          height={64}
-          className="scale-200 pointer-events-none w-full h-full object-cover"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            if (target.parentElement) {
-              target.parentElement.innerHTML = `
-                <div class="w-full h-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                  ${piece.displayIndex}
-                </div>
-              `;
-            }
-          }}
-        />
-        
-        {/* 選択状態のオーバーレイ */}
-        {isSelected && (
-          <div className="absolute inset-0 bg-opacity-20 flex items-center justify-center">
-          </div>
-        )}
-        
-        {/* 配置済みピースの位置表示 */}
-        {piece.placed && (
-          <div className="absolute top-0 left-0 bg-green-600 text-white text-xs px-1 py-0.5 rounded-br">
-            {formatPosition(piece.row, piece.col)}
-          </div>
-        )}
-        
-        {/* ピース番号 */}
-        <div className="absolute bottom-0 right-0 bg-black bg-opacity-60 text-white text-xs px-1 py-0.5 rounded-tl">
-          {piece.displayIndex}
-        </div>
-      </div>
-    );
-  };
+  const unplacedPieces = shuffledIds
+    .map((id) => pieces[id])
+    .filter((piece) => piece && !piece.placed)
+    .map((piece) => ({
+      ...piece,
+      displayIndex: pieceToDisplayIndexMap[piece.id] || 999,
+    }));
 
   return (
-    <div className="w-full">
-      <div className="mb-4 text-center">
-        <h3 className="text-lg font-bold text-gray-800">
-          ピース選択
-        </h3>
-        <p className="text-xs text-gray-600 mt-1">
-          ピースをクリックして選択し、盤面に配置・移動してください
-        </p>
+    <div className="bg-white p-6 rounded-xl border border-[#2EAFB9] shadow-sm">
+      <div
+        className="grid grid-cols-5 gap-2 overflow-y-auto p-2"
+        style={{ maxHeight: `calc(100vh - 550px)` }}
+      >
+        {unplacedPieces.map((piece) => {
+          const isFocused = selectedPieceId === piece.id;
+          const imagePath = `/pieces/${season}/${piece.displayIndex}.png`;
+
+          return (
+            <div
+              key={piece.id}
+              onClick={() => onPieceSelect(piece.id)}
+              className={`aspect-square rounded-lg cursor-pointer transition-all shadow-sm flex items-center justify-center relative ${
+                isFocused
+                  ? "z-50 scale-[1.2] shadow-lg overflow-visible p-0"
+                  : "overflow-hidden p-1 border-2 border-[#2EAFB9] hover:border-[#27A2AA] hover:bg-[#F0FDFA] hover:shadow-md"
+              }`}
+              style={{
+                transition: "transform 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease",
+              }}
+            >
+              <Image
+                src={imagePath}
+                alt={`ピース ${piece.displayIndex}`}
+                width={256}
+                height={256}
+                unoptimized
+                className="w-full h-full object-cover pointer-events-none rounded"
+                style={{
+                  transform: `scale(3.5)`,
+                  transformOrigin: "center",
+                }}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = "none";
+                  if (target.parentElement) {
+                    target.parentElement.innerHTML = `
+                      <div class="w-full h-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                        ${piece.displayIndex}
+                      </div>
+                    `;
+                  }
+                }}
+              />
+            </div>
+          );
+        })}
+
+        {unplacedPieces.length === 0 && (
+          <div className="text-center text-gray-500 py-8">
+            すべてのピースが配置されました
+          </div>
+        )}
       </div>
-
-      {/* 未配置ピース */}
-      {sortedUnplacedPieces.length > 0 && (
-        <div className="mb-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-            <span className="w-3 h-3 bg-blue-400 rounded-full mr-2"></span>
-            未配置ピース ({sortedUnplacedPieces.length}個)
-          </h4>
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-32 overflow-y-auto bg-blue-50 p-3 rounded-lg">
-            {sortedUnplacedPieces.map(piece => renderPiece(piece, 'unplaced'))}
-          </div>
-        </div>
-      )}
-
-      {/* 配置済みピース */}
-      {sortedPlacedPieces.length > 0 && (
-        <div className="mb-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-            <span className="w-3 h-3 bg-green-400 rounded-full mr-2"></span>
-            配置済みピース ({sortedPlacedPieces.length}個) - クリックで移動可能
-          </h4>
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 max-h-32 overflow-y-auto bg-green-50 p-3 rounded-lg">
-            {sortedPlacedPieces.map(piece => renderPiece(piece, 'placed'))}
-          </div>
-        </div>
-      )}
-
-      {sortedUnplacedPieces.length === 0 && sortedPlacedPieces.length === 0 && (
-        <div className="text-center p-6 bg-gray-50 rounded-lg">
-          <div className="text-2xl mb-2">🧩</div>
-          <div className="text-lg font-semibold text-gray-700">ピースがありません</div>
-        </div>
-      )}
-
-      {selectedPieceId && (
-        <div className="mt-3 p-2 bg-blue-50 rounded-lg text-center">
-          <div className="text-sm text-blue-700">
-            <strong>
-              ピース {pieceToDisplayIndexMap[selectedPieceId] || '?'}
-            </strong> {pieces[selectedPieceId]?.placed ? '(配置済み)' : '(未配置)'} が選択されています
-          </div>
-        </div>
-      )}
     </div>
   );
 }
