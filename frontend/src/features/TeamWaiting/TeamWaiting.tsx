@@ -120,7 +120,7 @@ export const TeamWaiting = () => {
       </div>
       <p className="leading-relaxed text-center mt-5">
           他のプレイヤーにチーム番号を共有してメンバーを集めましょう<br />
-          3人 or 4人でゲーム開始可能です
+          1〜4人でゲーム開始可能です
       </p>
 
       <svg viewBox="0 0 393 73" preserveAspectRatio="none" className="fixed bottom-0 w-screen h-17 -z-10" xmlns="http://www.w3.org/2000/svg">
