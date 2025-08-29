@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
-import { preloadSounds } from './sound';
+import { preloadSounds, setSfxVolume } from './sound';
 
 // アイコンをインラインSVGで定義
 const SoundOnIcon = () => (
@@ -31,15 +31,13 @@ export const BGMPlayer = () => {
   const bgmActivePages = ['/', '/difficulty-selection', '/team-number-input', '/team-waiting'];
   const isBgmActivePage = bgmActivePages.includes(pathname);
 
-  // アプリケーションの初回マウント時に効果音を事前読み込み
-  useEffect(() => {
-    preloadSounds(sfxToPreload);
-  }, []);
-
-  // ユーザーの初回インタラクションを検知
+  // ユーザーの初回インタラクションを検知し、BGM再生と効果音のプリロードを開始
   useEffect(() => {
     const handleFirstInteraction = () => {
       setUserInteracted(true);
+      // このタイミングで効果音をプリロードすることで、再生の信頼性を高める
+      preloadSounds(sfxToPreload);
+
       // 一度検知したらリスナーは不要なので削除
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('keydown', handleFirstInteraction);
@@ -49,10 +47,21 @@ export const BGMPlayer = () => {
     window.addEventListener('keydown', handleFirstInteraction);
 
     return () => {
+      // コンポーネントのアンマウント時にリスナーをクリーンアップ
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('keydown', handleFirstInteraction);
     };
   }, []);
+
+  // BGMと効果音のデフォルト音量を設定します
+  useEffect(() => {
+    if (audioRef.current) {
+      // BGM音量を60%に設定
+      audioRef.current.volume = 0.6;
+    }
+    // 効果音の音量を60%に設定
+    setSfxVolume(0.6);
+  }, []); // このeffectはコンポーネントのマウント時に一度だけ実行されます
 
   // ページの表示状態とユーザー操作に応じてBGMを再生/停止
   useEffect(() => {
