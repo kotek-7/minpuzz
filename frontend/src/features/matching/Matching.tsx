@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSocket } from "@/lib/socket/client";
 import { MATCHING_EVENTS } from "./events";
-import { useGameActions } from "@/features/Game/store";
+import { useGameActions } from "@/features/game/store";
 
 const MatchingScreen: React.FC = () => {
   const keyframes = `

@@ -7,10 +7,14 @@ export const metadata: Metadata = {
   generator: "v0.app",
 };
 
-export default function GameLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <div className="font-sans">{children}</div>;
+  return (
+    <html lang="en">
+      <body className="font-sans">{children}</body>
+    </html>
+  );
 }

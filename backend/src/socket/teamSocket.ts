@@ -17,7 +17,6 @@ import { getTeamRoom, addSocketUserMapping, removeSocketUserMapping, getUserBySo
 import * as TeamModel from "../model/team/team.js";
 import * as Matching from "../model/matching/matching.js";
 import * as GameSession from "../model/game/session.js";
-import { TeamStatus } from "../model/team/types.js";
 import { redisKeys } from "../repository/redisKeys.js";
 import { buildInitPayload, buildInitPayloadWithTimer } from "../model/game/init.js";
 import * as PieceService from "../model/game/pieceService.js";
@@ -214,7 +213,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       const team = teamResult.value;
 
       // チームステータスがMATCHING状態であることを確認
-      if (team.status !== TeamStatus.MATCHING) {
+      if (team.status !== 'MATCHING') {
         console.error(`Team ${teamId} is not in matching state, current status: ${team.status}`);
         socket.emit("error", { message: "Team is not ready for matching" });
         return;
@@ -287,7 +286,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
       }
       // 初期ピースのシード（未登録の場合）
       try {
-        await seedPiecesIfEmpty(store, { matchId, rows: 5, cols: 5 });
+        await seedPiecesIfEmpty(store, { matchId, rows: 6, cols: 6 });
       } catch (e) {
         console.error("Failed to seed pieces:", e);
       }
@@ -301,7 +300,7 @@ export function registerTeamHandler(io: Server, socket: Socket, redis: RedisClie
         const nowIso = new Date().toISOString();
         const gameStartPayload: GameStartPayload = { matchId, timestamp: nowIso };
         // M5: タイマー設定（デフォルト 120s）
-        const DEFAULT_DURATION_MS = 240_000; // 4分 = 240秒
+        const DEFAULT_DURATION_MS = 120_000;
         const setTimerRes = await store.setTimer(matchId, { startedAt: nowIso, durationMs: DEFAULT_DURATION_MS });
         if (setTimerRes.isErr()) {
           console.error("Failed to set timer on GAME_START:", setTimerRes.error);

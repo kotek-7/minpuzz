@@ -11,8 +11,7 @@ export function ensureExists(piece: Piece | null): Result<Piece, GuardError> {
 }
 
 export function ensureNotPlaced(piece: Piece): Result<Piece, GuardError> {
-  // 配置済みピースも移動可能にするため、このチェックを削除
-  // if (piece.placed) return err('placed');
+  if (piece.placed) return err('placed');
   return ok(piece);
 }
 
@@ -46,15 +45,13 @@ export function canPlace(
   if (base.isErr()) return err(base.error);
   if (!Number.isInteger(row) || row < 0 || !Number.isInteger(col) || col < 0) return err('invalidCell');
   const p = base.value;
-  
-  // 正解セル判定を削除 - 任意の位置に配置可能にする
-  // if (p.solRow !== undefined && p.solCol !== undefined) {
-  //   if (p.solRow !== row || p.solCol !== col) return err('invalidCell');
-  // }
-  
-  // スナップ誤差判定を緩和 - より柔軟な配置を可能にする
-  // if (x !== undefined && y !== undefined) {
-  //   if (!withinSnap(defaultGeometry, row, col, x, y)) return err('invalidCell');
-  // }
+  // 正解セル判定（solRow/solCol一致）
+  if (p.solRow !== undefined && p.solCol !== undefined) {
+    if (p.solRow !== row || p.solCol !== col) return err('invalidCell');
+  }
+  // スナップ誤差判定（座標が渡されていればチェック）
+  if (x !== undefined && y !== undefined) {
+    if (!withinSnap(defaultGeometry, row, col, x, y)) return err('invalidCell');
+  }
   return ok(p);
 }
