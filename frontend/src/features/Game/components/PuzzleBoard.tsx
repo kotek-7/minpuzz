@@ -8,7 +8,7 @@ interface PuzzleBoardProps {
   selectedPieceId: string | null;
   pieceToDisplayIndexMap: Record<string, number>;
   occupiedCells: Set<string>;
-  glowPieceId: number | null;
+  glowPieceId: string | null;
   onCellClick: (row: number, col: number) => void;
   onPlacedPieceClick: (pieceId: string) => void;
 }

@@ -11,7 +11,7 @@ export default function GameUI({ gameState, uiState, computedData, actions }: an
   const { selectedPieceId } = uiState;
   const { pieceToDisplayIndexMap, occupiedCells, remainingTimeMs } = computedData;
 
-  const [glowPieceId, setGlowPieceId] = useState<number | null>(null);
+  const [glowPieceId, setGlowPieceId] = useState<string | null>(null);
 
   // glowFade アニメーションを注入（初回のみ）
   useEffect(() => {
@@ -79,6 +79,10 @@ export default function GameUI({ gameState, uiState, computedData, actions }: an
           remainingTimeMs={remainingTimeMs}
           isStarted={started}
           matchStatus={matchStatus}
+          isComplete={false}
+          myScore={0}
+          opponentScore={0}
+          totalPieces={pieces.length}
         />
 
         {/* 盤面とピース一覧 */}
