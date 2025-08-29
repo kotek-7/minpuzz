@@ -8,8 +8,9 @@ interface PuzzleBoardProps {
   selectedPieceId: string | null;
   pieceToDisplayIndexMap: Record<string, number>;
   occupiedCells: Set<string>;
-  onCellClick: (row: number, col: number) => void; // 空セルクリック時の配置処理
-  onPlacedPieceClick: (pieceId: string) => void; // 配置済みピースクリック時の選択処理
+  glowPieceId: number | null;
+  onCellClick: (row: number, col: number) => void;
+  onPlacedPieceClick: (pieceId: string) => void;
 }
 
 export default function PuzzleBoard({
@@ -18,12 +19,13 @@ export default function PuzzleBoard({
   selectedPieceId,
   pieceToDisplayIndexMap,
   occupiedCells,
+  glowPieceId,
   onCellClick,
-  onPlacedPieceClick
+  onPlacedPieceClick,
 }: PuzzleBoardProps) {
   if (!board) {
     return (
-      <div className="w-full aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
+      <div className="w-full aspect-square bg-gray-200 rounded-xl flex items-center justify-center shadow-inner">
         <div className="text-gray-500">盤面を読み込み中...</div>
       </div>
     );
@@ -31,19 +33,16 @@ export default function PuzzleBoard({
 
   const { rows, cols } = board;
 
-  // 配置済みピースから盤面の状態を構築
-  const boardState: Array<Array<{ pieceId: string; displayIndex: number } | null>> = 
+  const boardState: Array<Array<{ pieceId: string; displayIndex: number } | null>> =
     Array(rows).fill(null).map(() => Array(cols).fill(null));
 
-  // 配置済みピースを盤面にマッピング
-  Object.values(pieces).forEach(piece => {
+  Object.values(pieces).forEach((piece) => {
     if (piece.placed && piece.row !== undefined && piece.col !== undefined) {
       const displayIndex = pieceToDisplayIndexMap[piece.id] || 1;
-      
       if (piece.row < rows && piece.col < cols) {
         boardState[piece.row][piece.col] = {
           pieceId: piece.id,
-          displayIndex
+          displayIndex,
         };
       }
     }
@@ -56,9 +55,8 @@ export default function PuzzleBoard({
     const canPlace = selectedPieceId && !isOccupied;
     const selectedPiece = selectedPieceId ? pieces[selectedPieceId] : null;
     const isMovingSelectedPiece = selectedPiece?.placed && selectedPiece.row === row && selectedPiece.col === col;
-    const season = "spring"; // TODO: propsから受け取る
+    const season = "spring";
 
-    // セルクリック処理
     const handleCellClick = () => {
       if (cellContent && !isMovingSelectedPiece) {
         onPlacedPieceClick(cellContent.pieceId);
@@ -69,90 +67,75 @@ export default function PuzzleBoard({
       }
     };
 
-    // オーバーレイのスタイルを決定
-    const getOverlayStyle = (): string => {
-      const baseStyle = "absolute inset-0 w-full h-full rounded-lg z-20 transition-all duration-200 pointer-events-none border-4";
-      if (isMovingSelectedPiece) return `${baseStyle} border-yellow-400 bg-yellow-400/30`;
-      if (cellContent) return "absolute inset-0 w-full h-full rounded-lg z-20 transition-all duration-200 pointer-events-none border-4 border-transparent group-hover:border-green-400/70";
-      if (canPlace) return `${baseStyle} border-blue-400 bg-blue-400/30`;
-      if (isOccupied) return `${baseStyle} border-red-400 bg-red-400/30`;
-      return "absolute inset-0 w-full h-full rounded-lg z-20 transition-all duration-200 pointer-events-none border-2 border-gray-300 group-hover:border-gray-400";
-    };
-
-    // ツールチップテキストを取得
-    const getTooltipText = (): string => {
-      if (isMovingSelectedPiece) return `選択中のピース ${cellContent!.displayIndex} - クリックで選択解除`;
-      if (cellContent) return `ピース ${cellContent.displayIndex} - クリックで選択`;
-      if (canPlace) {
-        const action = selectedPiece?.placed ? '移動' : '配置';
-        return `${action}可能 - クリックでピース ${pieceToDisplayIndexMap[selectedPieceId!]}を${action}`;
-      }
-      if (isOccupied) return '配置不可';
-      return '空きセル';
-    };
+    const isSelected = selectedPieceId && cellContent?.pieceId === selectedPieceId;
+    const isGlowing = glowPieceId === cellContent?.pieceId && !isSelected;
 
     return (
       <div
         key={cellKey}
-        className="group relative aspect-square bg-white rounded-lg cursor-pointer shadow-inner"
-        title={getTooltipText()}
+        className="relative aspect-square bg-white rounded-lg cursor-pointer shadow-inner border border-[#2EAFB9]"
         onClick={handleCellClick}
       >
-        {/* 1. ピース画像  */}
         {cellContent && (
           <div
-            className="absolute scale-[3.6] z-10 pointer-events-none inset-0 w-full h-full bg-cover bg-center rounded-md"
-            style={{ backgroundImage: `url(/pieces/${season}/${cellContent.displayIndex}.png)` }}
+            className={`absolute inset-0 w-full h-full bg-cover bg-center rounded-md pointer-events-none ${
+              isSelected ? "scale-[1.2] shadow-lg z-10" : ""
+            }`}
+            style={{
+              backgroundImage: `url(/pieces/${season}/${cellContent.displayIndex}.png)`,
+              transform: "scale(3.6)",
+              transformOrigin: "center",
+              transition: "transform 0.3s ease, box-shadow 0.3s ease",
+            }}
           />
         )}
 
-        {/* 2. 状態オーバーレイ  */}
-        <div className={getOverlayStyle()}>
-          {!cellContent && canPlace && (
-            <div className="w-full h-full flex items-center justify-center text-4xl text-blue-500 opacity-70">+</div>
-          )}
-          {!cellContent && !canPlace && selectedPieceId && isOccupied && (
-            <div className="w-full h-full flex items-center justify-center text-3xl text-red-500 opacity-70">×</div>
-          )}
-        </div>
+        {isGlowing && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              borderRadius: "12px",
+              boxShadow: "0 0 20px 8px rgba(74,226,243,0.6)",
+              opacity: 1,
+              transform: "scale(1)",
+              animation: "glowFade 0.5s ease-out forwards",
+              pointerEvents: "none",
+              zIndex: 20,
+            }}
+          />
+        )}
+
+        {!cellContent && canPlace && (
+          <div className="absolute inset-0 flex items-center justify-center text-4xl text-blue-500 opacity-70 pointer-events-none">
+            +
+          </div>
+        )}
+
+        {!cellContent && !canPlace && selectedPieceId && isOccupied && (
+          <div className="absolute inset-0 flex items-center justify-center text-3xl text-red-500 opacity-70 pointer-events-none">
+            ×
+          </div>
+        )}
       </div>
     );
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto">
-      <div className="mb-4 text-center">
-        <h2 className="text-xl font-bold text-gray-800">パズル盤面 ({rows}×{cols})</h2>
-        {selectedPieceId && (
-          <p className="text-sm text-blue-600 mt-1">
-            ピース {pieceToDisplayIndexMap[selectedPieceId] || '?'} 
-            {pieces[selectedPieceId]?.placed ? ' (配置済み - 移動可能)' : ' (未配置 - 配置可能)'} が選択中
-          </p>
-        )}
-        {!selectedPieceId && (
-          <p className="text-sm text-gray-500 mt-1">
-            ピースを選択してから盤面をクリックしてください
-          </p>
-        )}
-      </div>
-      
-      <div 
-        className="grid gap-0.5 bg-gray-100 p-2 rounded-xl shadow-lg"
-        style={{ 
+    <div className="bg-white p-6 rounded-xl border border-[#2EAFB9] shadow-sm">
+      <div
+        className="grid gap-0 bg-gray-100 p-4 rounded-lg border border-[#2EAFB9]"
+        style={{
           gridTemplateColumns: `repeat(${cols}, 1fr)`,
-          gridTemplateRows: `repeat(${rows}, 1fr)` 
+          gridTemplateRows: `repeat(${rows}, 1fr)`,
         }}
       >
         {Array.from({ length: rows }, (_, row) =>
           Array.from({ length: cols }, (_, col) => renderCell(row, col))
         )}
-      </div>
-      
-      <div className="mt-3 text-xs text-gray-500 text-center">
-        <div className="space-y-1">
-          <div>✓ 緑: 配置済み（クリックで選択） | ⚡ 黄: 選択中（クリックで解除）</div>
-          <div>+ 青: 配置/移動可能 | × 赤: 配置不可</div>
-        </div>
       </div>
     </div>
   );
