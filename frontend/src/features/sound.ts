@@ -24,6 +24,8 @@ export const preloadSounds = (sources: string[]) => {
     if (!audioCache[src]) {
       const sound = new Audio(src);
       sound.preload = 'auto';
+      // load()を明示的に呼び出すことで、より確実にプリロードを試みます。
+      sound.load();
       audioCache[src] = sound;
     }
   }
@@ -33,18 +35,21 @@ export const preloadSounds = (sources: string[]) => {
  * 指定された音源のサウンドエフェクトを再生します。
  * パフォーマンス向上のため、一度再生した音声はキャッシュして再利用します。
  * @param src - 再生する音声ファイルのパス (例: '/sounds/click.mp3')
+ * @param options - 再生オプション（再生速度など）
  */ 
-export const playSound = (src: string) => {
+export const playSound = (src: string, options?: { playbackRate?: number }) => {
   // ブラウザ環境でのみ動作するようにチェック
   if (typeof window === 'undefined') return;
 
   let sound = audioCache[src];
   if (!sound) {
     sound = new Audio(src);
+    // キャッシュにない音源は、ここでキャッシュに追加します。
     audioCache[src] = sound;
   }
 
   sound.volume = sfxVolume;
-  sound.currentTime = 0; // 連続で再生された場合に備えて、再生位置を最初に戻す
+  sound.playbackRate = options?.playbackRate ?? 1;
+  sound.currentTime = 0; // 連続再生のために再生位置をリセット
   sound.play().catch(error => console.error(`Sound playback failed for ${src}:`, error));
 };

@@ -15,8 +15,7 @@ export const TeamNumberInput = () => {
 
   return (
     <div
-      className="flex flex-col justify-center items-center min-h-screen bg-white px-5 isolate"
-      style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
+      className="flex flex-col justify-center items-center min-h-dvh bg-white px-5 isolate"
     >
       <button
         onClick={() => {
@@ -32,7 +31,7 @@ export const TeamNumberInput = () => {
 
       <div className="w-full bg-white border-2 border-[#00bcd4] rounded-xl p-6 text-center shadow-xl">
         <h1 className="text-[22px] font-bold mt-4 mb-2">チーム番号を入力</h1>
-        <div className="w-20 h-1 bg-gradient-to-r from-[#007f9e] to-[#00c8ff] mx-auto mb-6 mt-5 mb-15" />
+        <div className="w-20 h-1 bg-gradient-to-r from-[#007f9e] to-[#00c8ff] mx-auto mt-5 mb-6" />
         <p className="mb-1">チームを作成した人の画面に映っている番号を入力してください。</p>
         <p className="mb-6">(例: XDG3048)</p>
 
@@ -44,9 +43,10 @@ export const TeamNumberInput = () => {
             type="text"
             id="joinNumber"
             placeholder="チーム番号を入力"
+            autoCapitalize="characters"
             value={joinNumber}
-            onChange={(e) => setJoinNumber(e.target.value.toUpperCase())}
-            className="w-full p-2 rounded-lg border-2 border-[#007f9e]"
+            onChange={(e) => setJoinNumber(e.target.value)}
+            className="w-full p-2 rounded-lg border-2 border-[#007f9e] uppercase tracking-widest text-center"
           />
         </div>
         {error && <p className="text-red-600 mb-2">{error}</p>}
@@ -63,7 +63,7 @@ export const TeamNumberInput = () => {
             }
             try {
               setLoading(true);
-              const resolved = await resolveTeamNumber(joinNumber.trim());
+              const resolved = await resolveTeamNumber(joinNumber.trim().toUpperCase());
               const userId = getOrCreateUserId();
               await addTeamMember({ teamId: resolved.teamId, userId });
               setTeamId(resolved.teamId);
