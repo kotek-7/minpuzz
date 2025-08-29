@@ -25,7 +25,7 @@ export async function buildStateSnapshot(store: GameStore, matchId: string): Pro
   const match = matchR.value ?? null;
 
   return ok({
-    board: { rows: 5, cols: 5 },
+    board: { rows: 6, cols: 6 },
     pieces,
     score,
     timer,

@@ -14,10 +14,11 @@ export async function grab(
 ): Promise<Result<{ pieceId: string }, GrabError>> {
   const pieceRes = await store.getPiece(params.matchId, params.pieceId);
   if (pieceRes.isErr()) return err('io');
-  const p0Res = ensureExists(pieceRes.value);
+  const p0Res = ensureExists(pieceRes.value).andThen(ensureNotPlaced);
   if (p0Res.isErr()) {
-    // 'notFound' のみが来る（grabでは 'notHolder' は発生しない）
-    return err('notFound');
+    // 'notFound' | 'placed' のみが来る（grabでは 'notHolder' は発生しない）
+    if (p0Res.error === 'notFound') return err('notFound');
+    return err('placed');
   }
 
   // Acquire lock
@@ -26,14 +27,8 @@ export async function grab(
     if (lock.error === 'conflict') return err('locked');
     return err('io');
   }
-  // persist holder and reset placed state if piece was placed
+  // persist holder
   const updated = withHolder(p0Res.value, params.userId);
-  // 配置済みピースを掴んだ場合は配置状態をリセット
-  if (updated.placed) {
-    updated.placed = false;
-    updated.row = undefined;
-    updated.col = undefined;
-  }
   const setRes = await store.setPiece(params.matchId, updated);
   if (setRes.isErr()) return err('io');
   return ok({ pieceId: params.pieceId });
@@ -46,6 +41,7 @@ export async function move(
   const pieceRes = await store.getPiece(params.matchId, params.pieceId);
   if (pieceRes.isErr()) return err('io');
   const guarded = ensureExists(pieceRes.value)
+    .andThen(ensureNotPlaced)
     .andThen((p) => ensureHolder(p, params.userId));
   if (guarded.isErr()) return err(guarded.error);
   const next = withPosition(guarded.value, params.x, params.y);
@@ -61,6 +57,7 @@ export async function release(
   const pieceRes = await store.getPiece(params.matchId, params.pieceId);
   if (pieceRes.isErr()) return err('io');
   const guarded = ensureExists(pieceRes.value)
+    .andThen(ensureNotPlaced)
     .andThen((p) => ensureHolder(p, params.userId));
   if (guarded.isErr()) return err(guarded.error);
   const next = withHolder(withPosition(guarded.value, params.x, params.y), undefined);
