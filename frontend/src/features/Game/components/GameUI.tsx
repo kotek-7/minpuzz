@@ -5,9 +5,8 @@ import PuzzleBoard from "./PuzzleBoard";
 import PieceSelector from "./PieceSelector";
 import GameTimer from "./GameTimer";
 
-import type { GameUIProps } from "./types";
 
-export default function GameUI({ gameState, uiState, computedData, actions }: GameUIProps) {
+export default function GameUI({ gameState, uiState, computedData, actions }: any) {
   const { board, pieces, matchStatus, started } = gameState;
   const { selectedPieceId } = uiState;
   const { pieceToDisplayIndexMap, occupiedCells, remainingTimeMs } = computedData;
