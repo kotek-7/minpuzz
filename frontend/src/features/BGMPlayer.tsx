@@ -15,8 +15,11 @@ const SoundOffIcon = () => (
 
 // アプリケーション全体で使われる主要な効果音!!!!!!!!!!
 const sfxToPreload = [
-  '/sounds/select.mp3',
-  '/sounds/select_back.mp3',
+  "/sounds/select.mp3",
+  "/sounds/select_back.mp3",
+  // ゲーム画面で使われる効果音もプリロード対象に追加
+  "/sounds/pieceSound.mp3",
+  "/sounds/pieceSelect.mp3",
 ];
 
 export const BGMPlayer = () => {
@@ -31,12 +34,17 @@ export const BGMPlayer = () => {
   const bgmActivePages = ['/', '/difficulty-selection', '/team-number-input', '/team-waiting'];
   const isBgmActivePage = bgmActivePages.includes(pathname);
 
-  // ユーザーの初回インタラクションを検知し、BGM再生と効果音のプリロードを開始
+  // アプリケーションの初回マウント時に効果音を事前読み込みします。
+  // これにより、音声オブジェクトが事前に作成され、ブラウザが読み込みを開始する準備が整います。
+  useEffect(() => {
+    preloadSounds(sfxToPreload);
+  }, []); // このeffectはコンポーネントのマウント時に一度だけ実行されます
+
+  // ユーザーの初回インタラクションを検知し、BGM再生を許可します。
+  // この操作がブラウザの音声再生制限を解除するきっかけとなります。
   useEffect(() => {
     const handleFirstInteraction = () => {
       setUserInteracted(true);
-      // このタイミングで効果音をプリロードすることで、再生の信頼性を高める
-      preloadSounds(sfxToPreload);
 
       // 一度検知したらリスナーは不要なので削除
       window.removeEventListener('click', handleFirstInteraction);
