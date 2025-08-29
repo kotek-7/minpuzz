@@ -1,11 +1,8 @@
 export type Piece = {
   id: string;
-  x: number;
-  y: number;
   placed: boolean;
   row?: number;
   col?: number;
-  holder?: string; // userId of current holder
   // solution position (正解セル): 配置判定用にサーバ保持
   solRow?: number;
   solCol?: number;

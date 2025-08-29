@@ -17,19 +17,6 @@ export interface GameStore {
   setPiece(matchId: string, piece: Piece): Promise<Result<true, StoreError>>;
   listPieces(matchId: string): Promise<Result<Piece[], StoreError>>;
 
-  // piece lock
-  acquirePieceLock(
-    matchId: string,
-    pieceId: string,
-    userId: string,
-    ttlSec: number
-  ): Promise<Result<true, StoreError>>;
-  releasePieceLock(
-    matchId: string,
-    pieceId: string,
-    userId: string
-  ): Promise<Result<true, StoreError>>;
-
   // score
   getScore(matchId: string): Promise<Result<Score, StoreError>>;
   incrTeamPlaced(matchId: string, teamId: string): Promise<Result<number, StoreError>>; // returns new value
@@ -39,4 +26,3 @@ export interface GameStore {
   getTimer(matchId: string): Promise<Result<Timer | null, StoreError>>;
   setTimer(matchId: string, timer: Timer): Promise<Result<true, StoreError>>;
 }
-

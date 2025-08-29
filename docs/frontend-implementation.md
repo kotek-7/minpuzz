@@ -14,8 +14,8 @@
 2. 接続ライフサイクルとルーム（M1）
 3. マッチングからゲーム接続（M1）
 4. ドメイン状態と型共有（M2）
-5. ピース操作（M3）grab/move/release
-6. 配置/進捗/終了（M4）
+5. ピース配置（M3：クリック式）
+6. 進捗/終了（M4）
 7. タイマー（M5）timer-sync と補正
 8. 再接続/同期ずれ対策（M6）
 9. エラー/冪等/セキュリティ（共通）
@@ -69,16 +69,10 @@
 
 - ゲーム中（M3/4）
   - In
-    - `piece-grab { matchId, teamId, userId, pieceId }`
-    - `piece-move { matchId, teamId, userId, pieceId, x:number, y:number, ts:number }`
-    - `piece-release { matchId, teamId, userId, pieceId, x:number, y:number }`
-    - `piece-place { matchId, teamId, userId, pieceId, row:int, col:int, x:number, y:number }`
+    - `piece-place { matchId, teamId, userId, pieceId, row:int, col:int }`
   - Out
-    - `piece-grabbed { pieceId, byUserId }`／`piece-grab-denied { pieceId, reason: 'locked'|'placed'|'notFound' }`
-    - `piece-moved { pieceId, x, y, byUserId, ts }`
-    - `piece-released { pieceId, x, y, byUserId }`
     - `piece-placed { pieceId, row, col, byUserId }`
-    - `piece-place-denied { pieceId, reason: 'notFound'|'placed'|'notHolder'|'invalidCell' }`
+    - `piece-place-denied { pieceId, reason: 'notFound'|'placed'|'invalidCell' }`
     - `progress-update { placedByTeam: Record<string,number> }`（public）
     - `game-end { reason:'completed'|'timeout'|'forfeit', winnerTeamId: string|null, scores: Record<string,number>, finishedAt: string }`（public）
 
@@ -92,7 +86,7 @@
   - Out（本人宛）
     - `state-sync { board, pieces: Piece[], score: {placedByTeam}, timer: {startedAt,durationMs}|null, matchStatus: string }`
 
-送出先の原則: 本人（denied/state-sync）、チームroom（grab/move/release/placed）、public room（progress/timer-sync/game-end）。
+送出先の原則: 本人（denied/state-sync）、チームroom（placed）、public room（progress/timer-sync/game-end）。
 
 ## 1. 前提と環境準備
 
@@ -101,8 +95,8 @@
   - ルーム系: `join-team`/`leave-team` → `member-joined`/`member-left`/`team-updated`
   - マッチング系: `join-matching-queue` → `navigate-to-matching` → `match-found`
   - ゲーム接続系: `join-game` → `game-init`（+直後の`state-sync`）→ 全員接続で`game-start`
-  - ゲーム中（M3/4/5/6）: `piece-*`（grab/move/release/place）と `piece-*-denied`、`progress-update`、`timer-sync`、`game-end`、`request-game-init`→`state-sync`
-  - 送出先の整理: 本人宛（denied/state-sync）、チームroom（grab/move/release/placed）、public room（progress-update/timer-sync/game-end）
+  - ゲーム中（M3/4/5/6）: `piece-place` と `piece-place-denied`、`progress-update`、`timer-sync`、`game-end`、`request-game-init`→`state-sync`
+  - 送出先の整理: 本人宛（denied/state-sync）、チームroom（placed）、public room（progress-update/timer-sync/game-end）
 - 推奨ディレクトリ構成:
   - `frontend/src/lib/socket`（socket生成・共通ハンドラ登録）
   - `frontend/src/features/game/state`（board/pieces/score/timer/matchStatus の単一ソース）
@@ -113,8 +107,8 @@
 - 実装ポイント:
   - ソケット初期化はシングルトン: `io(backendUrl, { transports: ['websocket'], reconnection: true })`
   - ハンドラ登録/解除: マウント時 `socket.on(...)`、アンマウント時 `socket.off(...)`（重複受信防止）
-  - イベント冪等化: 再接続・重複送信に備え、受信側で最新優先・重複排除（例: 同一`pieceId`の最新`ts`で上書き）
-  - 軽量スロットリング: `piece-move`送信は40ms程度、`request-game-init` は500ms程度（サーバ側も制限あり）
+  - イベント冪等化: 再接続・重複送信に備え、受信側で最新優先・重複排除
+  - 軽量スロットリング: `request-game-init` は500ms程度（サーバ側も制限あり）
   - 型: 共通パッケージでの型共有が理想。難しければ Zod に沿うローカル型を定義して parse（開発時のみでも可）
 - 最小スニペット（概念）:
 
@@ -339,52 +333,88 @@ function onProgress(p: { placedByTeam: Record<string, number> }) {
 
 ---
 
-## 5. ピース操作（M3）：grab / move / release
+## 5. ピース配置（M3：クリック式）
 
-- 背景: サーバ権威でロック/位置/保持者を管理。フロントは入力→送信→受信反映。
+- 背景: フロントで「ピース選択→セルクリック→`piece-place`送信」。サーバは検証（未配置/盤内/セル未占有）に合格したものだけ確定。
 - 契約:
-  - In: `piece-grab {matchId,teamId,userId,pieceId}`、`piece-move {matchId,teamId,userId,pieceId,x,y,ts}`、`piece-release {matchId,teamId,userId,pieceId,x,y}`
-  - Out: `piece-grabbed {pieceId,byUserId}` / `piece-grab-denied {pieceId,reason}`、`piece-moved {pieceId,x,y,byUserId,ts}`、`piece-released {pieceId,x,y,byUserId}`
+  - In: `piece-place {matchId,teamId,userId,pieceId,row,col}`
+  - Out: `piece-placed {pieceId,row,col,byUserId}`（team）、`piece-place-denied {pieceId,reason}`（本人）
 - 実装ポイント:
-  - grab: 押下時に送信。成功イベントで保持者が自分ならドラッグ継続可能に。
-  - move: 40msスロットリングで送信し、受信 `piece-moved` で最終位置にスナップ（自分の送信でもサーバ反映を信頼）。
-  - release: ドロップ時に送信。受信で保持解除・位置最終化。
-  - denied: grab失敗時はUIで「他ユーザーが保持中/配置済」などの表示。
-- 例（概念）:
+  - UI: 選択中のピースを強調。占有セルはクリック不可に。
+  - エラー: denied理由は短文表示（invalidCell/placed/notFound）。選択状態は維持し再試行可。
+  - 同時操作: 先着のみ成功（後続は denied）。
+- 受信: `piece-placed` で該当ピースを配置済みに更新。
+
+### ゲーム本体つなぎ込み（バックエンド知らなくてもOK）
+- 目的: 「サーバ契約（イベント/ペイロード）」に沿って、フロント側の状態とUIを同期させる。
+- 使うイベント（最小）:
+  - 送信: `piece-place { matchId, teamId, userId, pieceId, row, col }`
+  - 受信: `piece-placed { pieceId, row, col, byUserId }`（自チームroom）
+  - 受信: `piece-place-denied { pieceId, reason }`（本人宛）
+  - 受信: `progress-update { placedByTeam }`（public）
+  - 受信: `timer-sync { nowIso, startedAt, durationMs, remainingMs }`（public）
+  - 受信: `game-end { reason, winnerTeamId, scores, finishedAt }`（public）
+- ライフサイクル（簡略）:
+  1) `join-game` 送信後、サーバから `game-init` → 直後に `state-sync`
+  2) 全員接続で `game-start` 受信
+  3) 以後、`piece-place` 送信→ 成功で `piece-placed`、失敗は `piece-place-denied`
+  4) 進捗は `progress-update`、残時間は `timer-sync` で更新
+  5) 終了は `game-end` 一回のみ（冪等ガード）
+- 最小ハンドラ例（概念）:
 
 ```ts
-const sendMove = throttle(40, (payload: PieceMovePayload) => s.emit(SOCKET_EVENTS.PIECE_MOVE, payload));
+// frontend/src/features/game/handlers.ts
+import { getSocket } from '@/lib/socket/client';
+import { SOCKET_EVENTS } from '@/features/game/events';
 
-function onDrag(pieceId: string, x: number, y: number, ts: number) {
-  const { matchId, teamId, userId } = session;
-  sendMove({ matchId, teamId, userId, pieceId, x, y, ts });
+export function mountGameHandlers(store: GameStore, nav: (path: string) => void) {
+  const s = getSocket();
+  const onPlaced = (p: { pieceId:string; row:number; col:number; byUserId:string }) => {
+    store.markPlaced(p.pieceId, p.row, p.col);
+  };
+  const onDenied = (p: { pieceId:string; reason:'invalidCell'|'placed'|'notFound' }) => {
+    store.ui.toast(p.reason === 'invalidCell' ? 'その位置には置けません' : p.reason === 'placed' ? '配置済みです' : 'ピースが見つかりません');
+  };
+  const onProgress = (p: { placedByTeam: Record<string, number> }) => store.setScore(p);
+  const onTimer = (p: { remainingMs:number; startedAt:string|null; durationMs:number|null }) => store.applyTimer(p);
+  const onEnd = (p: { reason:string; winnerTeamId:string|null; scores:Record<string,number> }) => {
+    if (store.ended) return; // 冪等ガード
+    store.finish(p);
+    nav('/result');
+  };
+  s.on(SOCKET_EVENTS.PIECE_PLACED, onPlaced);
+  s.on(SOCKET_EVENTS.PIECE_PLACE_DENIED, onDenied);
+  s.on(SOCKET_EVENTS.PROGRESS_UPDATE, onProgress);
+  s.on(SOCKET_EVENTS.TIMER_SYNC, onTimer as any);
+  s.on(SOCKET_EVENTS.GAME_END, onEnd as any);
+  return () => {
+    s.off(SOCKET_EVENTS.PIECE_PLACED, onPlaced);
+    s.off(SOCKET_EVENTS.PIECE_PLACE_DENIED, onDenied);
+    s.off(SOCKET_EVENTS.PROGRESS_UPDATE, onProgress);
+    s.off(SOCKET_EVENTS.TIMER_SYNC, onTimer as any);
+    s.off(SOCKET_EVENTS.GAME_END, onEnd as any);
+  };
+}
+
+export function sendPlace(matchId:string, teamId:string, userId:string, pieceId:string, row:number, col:number) {
+  getSocket().emit(SOCKET_EVENTS.PIECE_PLACE, { matchId, teamId, userId, pieceId, row, col });
 }
 ```
 
-ユーティリティ例:
+- 画面側の最小導線:
+  - ピース一覧で1つ選ぶ → 5x5セルをクリック → `sendPlace(...)` を呼ぶ
+  - 受信ハンドラで `markPlaced`/`setScore`/`applyTimer`/`finish` を呼ぶだけで UI を更新
+  - 失敗時（denied）はトースト表示、選択状態は維持し再試行可
 
-```ts
-// lib/util/timing.ts
-export function throttle<T extends (...args:any[])=>void>(intervalMs: number, fn: T): T {
-  let last = 0; let timer: any;
-  return ((...args: any[]) => {
-    const now = Date.now();
-    if (now - last >= intervalMs) { last = now; fn(...args); }
-    else if (!timer) {
-      const wait = intervalMs - (now - last);
-      timer = setTimeout(() => { last = Date.now(); timer = null; fn(...args); }, wait);
-    }
-  }) as T;
-}
+- 再同期（ズレ時/復帰時）:
+  - 500ms程度のデバウンスで `request-game-init` を送信（多重防止）
+  - 受信 `state-sync` は全量で上書き（サーバ権威）
 
-export function debounce<T extends (...args:any[])=>void>(waitMs: number, fn: T): T {
-  let t: any; return ((...a:any[]) => { clearTimeout(t); t = setTimeout(() => fn(...a), waitMs); }) as T;
-}
-```
-
-- チェックリスト:
-  - 自分のmoveもサーバ受信で上書き（視覚ジャンプが最小になるよう補間/アニメ任意）
-  - grab-denied を確実にハンドル（UIの誤状態を回避）
+- よくある落とし穴（回避策）:
+  - ハンドラの `on/off` 漏れ → `mountGameHandlers()` でクリーンアップを返す
+  - 同時placeの競合 → 先着のみ成功。UIは「占有セルはクリック不可」にして誘発を減らす
+  - 終了イベントの多重反映 → `store.ended` で冪等
+  - 送信の型ずれ → ここにある payload（キー名/型）を厳守
 
 ---
 

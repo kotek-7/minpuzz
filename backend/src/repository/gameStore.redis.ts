@@ -65,27 +65,7 @@ export class RedisGameStore implements GameStore {
     }
   }
 
-  // piece lock
-  async acquirePieceLock(matchId: string, pieceId: string, userId: string, ttlSec: number): Promise<Result<true, StoreError>> {
-    const okNx = await this.redis.setNxPx(redisKeys.matchPieceLock(matchId, pieceId), userId, Math.max(1, Math.floor(ttlSec * 1000)));
-    if (okNx.isErr()) return err("io");
-    if (!okNx.value) return err("conflict");
-    // track pieceId for heal/cleanup
-    const sadd = await this.redis.sadd(redisKeys.matchLocksPieces(matchId), pieceId);
-    if (sadd.isErr()) return err("io");
-    return ok(true as const);
-  }
-  async releasePieceLock(matchId: string, pieceId: string, userId: string): Promise<Result<true, StoreError>> {
-    const val = await this.redis.get(redisKeys.matchPieceLock(matchId, pieceId));
-    if (val.isErr()) return err("io");
-    if (!val.value) return err("notFound");
-    if (val.value !== userId) return err("conflict");
-    const del = await this.redis.delete(redisKeys.matchPieceLock(matchId, pieceId));
-    if (del.isErr()) return err("io");
-    // optional cleanup from set
-    await this.redis.srem(redisKeys.matchLocksPieces(matchId), pieceId);
-    return ok(true as const);
-  }
+  // piece lock: not supported in click-placement version
 
   // score
   async getScore(matchId: string): Promise<Result<Score, StoreError>> {

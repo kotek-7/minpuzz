@@ -51,8 +51,6 @@ export const redisKeys = {
 
   // ゲーム中状態（M2以降）
   matchPieces: (matchId: string) => RedisHashKey(`match:${matchId}:pieces`),
-  matchPieceLock: (matchId: string, pieceId: string) => RedisStringKey(`match:${matchId}:piece:${pieceId}:lock`),
-  matchLocksPieces: (matchId: string) => RedisSetKey(`match:${matchId}:locks:pieces`),
   matchScore: (matchId: string) => RedisHashKey(`match:${matchId}:score`),
   matchTimer: (matchId: string) => RedisStringKey(`match:${matchId}:timer`),
 } as const;
