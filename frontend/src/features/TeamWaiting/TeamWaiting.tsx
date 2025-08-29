@@ -56,7 +56,7 @@ export const TeamWaiting = () => {
 
   return (
     <div
-      className="relative flex flex-col justify-center items-center min-h-screen px-5 pb-20"
+      className="relative flex flex-col justify-center items-center min-h-dvh px-5 pb-20"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
       <div className="absolute inset-0 bg-white -z-20" />
       <button onClick={() => {

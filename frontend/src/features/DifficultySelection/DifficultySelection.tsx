@@ -24,7 +24,7 @@ export default function DifficultySelection() {
   const [loading, setLoading] = useState(false);
   return (
     <div
-      className="flex min-h-screen flex-col items-center bg-white isolate"
+      className="flex min-h-dvh flex-col items-center bg-white isolate"
       style={{ fontFamily: "'Noto Sans JP', sans-serif" }}
     >
       {/* 戻るボタンのコンポーネントです。 */}
