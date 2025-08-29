@@ -41,15 +41,20 @@ export const playSound = (src: string, options?: { playbackRate?: number }) => {
   // ブラウザ環境でのみ動作するようにチェック
   if (typeof window === 'undefined') return;
 
-  let sound = audioCache[src];
-  if (!sound) {
-    sound = new Audio(src);
-    // キャッシュにない音源は、ここでキャッシュに追加します。
-    audioCache[src] = sound;
+  const masterAudio = audioCache[src];
+  if (masterAudio) {
+    // 連続再生に対応するため、キャッシュされた音源をクローンして再生します。
+    // これにより、複数の同じ効果音が同時に再生可能になります。
+    const sound = masterAudio.cloneNode() as HTMLAudioElement;
+    sound.volume = sfxVolume;
+    sound.playbackRate = options?.playbackRate ?? 1;
+    sound.play().catch(error => console.error(`Sound playback failed for ${src}:`, error));
+  } else {
+    // キャッシュにない場合（フォールバック）
+    console.warn(`Sound not preloaded: ${src}. Playing directly.`);
+    const sound = new Audio(src);
+    sound.volume = sfxVolume;
+    sound.playbackRate = options?.playbackRate ?? 1;
+    sound.play().catch(error => console.error(`Sound playback failed for ${src}:`, error));
   }
-
-  sound.volume = sfxVolume;
-  sound.playbackRate = options?.playbackRate ?? 1;
-  sound.currentTime = 0; // 連続再生のために再生位置をリセット
-  sound.play().catch(error => console.error(`Sound playback failed for ${src}:`, error));
 };
